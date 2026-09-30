@@ -1,0 +1,16 @@
+# Dependencies and build output (each app also has its own .gitignore)
+node_modules/
+vendor/
+dist/
+
+# Secrets and local state
+.env
+.env.*
+!.env.example
+scripts/.dev-pids.json
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
