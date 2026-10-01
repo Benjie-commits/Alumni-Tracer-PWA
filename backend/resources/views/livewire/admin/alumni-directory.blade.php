@@ -52,6 +52,9 @@
                     @endforeach
                 </select>
             </label>
+            <label style="flex-direction:row;align-items:center;gap:6px">
+                <input type="checkbox" wire:model.live="taOnly" style="min-width:auto"> Teaching-assistant candidates only
+            </label>
             <button type="button" class="secondary" wire:click="clearFilters">Clear</button>
         </div>
 
@@ -70,7 +73,10 @@
             <tbody>
             @forelse ($profiles as $profile)
                 <tr wire:key="p{{ $profile->id }}">
-                    <td><a href="{{ route('admin.alumni.show', $profile) }}">{{ $profile->last_name }}, {{ $profile->first_name }}</a></td>
+                    <td>
+                        <a href="{{ route('admin.alumni.show', $profile) }}">{{ $profile->last_name }}, {{ $profile->first_name }}</a>
+                        @if ($profile->ta_flagged_at)<span class="pill" title="Strong graduate who said they are available as a teaching assistant">TA</span>@endif
+                    </td>
                     <td>{{ $profile->student_number ?? '—' }}</td>
                     <td>
                         {{ $profile->programme?->name ?? '—' }}

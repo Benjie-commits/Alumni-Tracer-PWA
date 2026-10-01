@@ -27,6 +27,11 @@ function fill(data) {
   for (const key of EDITABLE) form[key] = data[key] ?? ''
 }
 
+const surveys = ref([])
+const prefs = reactive({ sms: true, whatsapp: true })
+const prefsSaved = ref(false)
+const prefsError = ref('')
+
 onMounted(async () => {
   try {
     const [{ data }, refs] = await Promise.all([api.get('/me/profile'), api.get('/reference/options', { auth: false })])
@@ -36,8 +41,26 @@ onMounted(async () => {
     loadError.value = error.offline
       ? "You're offline, so your profile can't be loaded. Reconnect and refresh."
       : error.message
+    return
   }
+
+  // Secondary cards: a failure here must not hide the profile itself.
+  const [waiting, preferences] = await Promise.allSettled([api.get('/me/surveys'), api.get('/me/notification-preferences')])
+  if (waiting.status === 'fulfilled') surveys.value = waiting.value.data
+  if (preferences.status === 'fulfilled') Object.assign(prefs, preferences.value.data)
 })
+
+async function savePreference(channel) {
+  prefsSaved.value = false
+  prefsError.value = ''
+  try {
+    Object.assign(prefs, (await api.put('/me/notification-preferences', { [channel]: prefs[channel] })).data)
+    prefsSaved.value = true
+  } catch (error) {
+    prefs[channel] = !prefs[channel] // put the switch back: it did not save
+    prefsError.value = error.offline ? "You're offline, so that didn't save. Try again when you're connected." : error.message
+  }
+}
 
 async function save() {
   saved.value = false
@@ -64,6 +87,14 @@ async function save() {
       <strong>We couldn't verify your registration.</strong> Please contact the Registrar's office with your student number.
     </p>
     <p v-else class="alert ok">Verified graduate of Soroti University.</p>
+
+    <section v-if="surveys.length" class="card survey-card">
+      <h2>{{ surveys.length === 1 ? 'A survey is waiting for you' : 'Surveys are waiting for you' }}</h2>
+      <p v-for="survey in surveys" :key="survey.token" class="survey-row">
+        <span>{{ survey.title }}<span class="hint small"> · open until {{ new Date(survey.expires_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) }}</span></span>
+        <RouterLink class="btn" :to="{ name: 'survey', params: { token: survey.token } }">Answer (2 min)</RouterLink>
+      </p>
+    </section>
 
     <section class="card">
       <h2>Your academic record</h2>
@@ -119,6 +150,21 @@ async function save() {
 
       <button class="block" type="submit" :disabled="busy">{{ busy ? 'Saving…' : 'Save changes' }}</button>
     </form>
+
+    <section class="card">
+      <h2>Messages from the university</h2>
+      <p class="hint small" style="margin-top:0">We send survey links and the occasional reminder. Switch off whichever you don't want.</p>
+      <p v-if="prefsError" class="alert bad" role="alert">{{ prefsError }}</p>
+      <label class="check">
+        <input v-model="prefs.whatsapp" type="checkbox" @change="savePreference('whatsapp')" />
+        <span>WhatsApp messages</span>
+      </label>
+      <label class="check">
+        <input v-model="prefs.sms" type="checkbox" @change="savePreference('sms')" />
+        <span>SMS messages</span>
+      </label>
+      <p v-if="prefsSaved" class="hint small" role="status" style="margin-bottom:0">Saved.</p>
+    </section>
 
     <p class="center"><RouterLink :to="{ name: 'work' }">Add or update your work history →</RouterLink></p>
   </template>

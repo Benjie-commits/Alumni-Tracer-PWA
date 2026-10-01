@@ -3,10 +3,12 @@
     Start, stop or check the local SUN-ATES development stack on Windows.
 
 .DESCRIPTION
-    start   Launches the three things development needs, skipping any that are already up:
+    start   Launches what development needs, skipping any that are already up:
               1. MySQL 8.4 on 127.0.0.1:3307   (portable install, see README "Local setup")
               2. Laravel API + staff console   http://127.0.0.1:8000
               3. Vite dev server for the PWA   http://127.0.0.1:5173  (proxies /api to :8000)
+              4. Queue worker                  sends the queued survey and nudge messages
+              5. Scheduler                     runs the daily survey / nudge / status jobs
     stop    Stops whatever this script started, and shuts MySQL down cleanly.
     status  Shows which ports are listening.
 
@@ -63,9 +65,18 @@ function Save-Pid([string]$Name, [int]$ProcessId) {
     $pids | ConvertTo-Json | Set-Content $pidFile -Encoding ascii
 }
 
+# Background processes with no port: running iff the process we recorded is still alive.
+function Test-Running([string]$Name) {
+    $id = (Read-Pids).$Name
+    [bool]($id -and (Get-Process -Id $id -ErrorAction SilentlyContinue))
+}
+
 function Show-Status {
     foreach ($name in $ports.Keys) {
         '{0,-24} port {1,-5} {2}' -f $name, $ports[$name], $(if (Test-Port $ports[$name]) { 'UP' } else { 'down' })
+    }
+    foreach ($entry in @(@('Queue worker', 'worker'), @('Scheduler', 'scheduler'))) {
+        '{0,-24} {1,-10} {2}' -f $entry[0], '', $(if (Test-Running $entry[1]) { 'UP' } else { 'down' })
     }
 }
 
@@ -101,13 +112,27 @@ switch ($Action) {
             if (-not (Wait-Port 5173)) { throw "Vite did not start; see $logDir\vite.err.log" }
         }
 
+        # Surveys and nudges are queued jobs: without a worker they would sit unsent. The scheduler
+        # is what runs the daily survey/nudge commands (production uses cron + Supervisor instead).
+        if (-not (Test-Running 'worker')) {
+            Write-Host 'Starting queue worker...'
+            $p = Start-Service 'worker' $php @('artisan', 'queue:work', '--sleep=3', '--tries=3') (Join-Path $root 'backend')
+            Save-Pid 'worker' $p.Id
+        }
+        if (-not (Test-Running 'scheduler')) {
+            Write-Host 'Starting scheduler...'
+            $p = Start-Service 'scheduler' $php @('artisan', 'schedule:work') (Join-Path $root 'backend')
+            Save-Pid 'scheduler' $p.Id
+        }
+
         Show-Status
         Write-Host "`nStaff console: http://127.0.0.1:8000/admin    Alumni PWA: http://127.0.0.1:5173"
+        Write-Host 'Messaging is in log-only mode unless SMS_DRIVER / WHATSAPP_DRIVER are set in backend\.env (see Messages in the console).'
     }
 
     'stop' {
         $pids = Read-Pids
-        foreach ($name in 'vite', 'laravel') {   # MySQL is stopped below by asking it to shut down cleanly
+        foreach ($name in 'scheduler', 'worker', 'vite', 'laravel') {   # MySQL is stopped below by asking it to shut down cleanly
             $id = $pids.$name
             if ($id) { & taskkill.exe /PID $id /T /F 2>&1 | Out-Null }   # /T also ends artisan's worker children
         }

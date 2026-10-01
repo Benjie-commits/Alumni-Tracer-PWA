@@ -38,6 +38,10 @@ class AlumniDirectory extends Component
     #[Url]
     public string $status = '';
 
+    /** Only strong graduates who said they are available as teaching assistants (FR-3). */
+    #[Url]
+    public bool $taOnly = false;
+
     public function updated(string $property): void
     {
         $this->resetPage();
@@ -56,7 +60,7 @@ class AlumniDirectory extends Component
 
     public function clearFilters(): void
     {
-        $this->reset('search', 'schoolId', 'departmentId', 'programmeId', 'year', 'status');
+        $this->reset('search', 'schoolId', 'departmentId', 'programmeId', 'year', 'status', 'taOnly');
         $this->resetPage();
     }
 
@@ -75,6 +79,7 @@ class AlumniDirectory extends Component
             'programmeId' => $this->programmeId,
             'year' => $this->year,
             'status' => $this->status,
+            'ta' => $this->taOnly ? '1' : '',
         ], fn ($v) => $v !== '');
     }
 
@@ -91,6 +96,7 @@ class AlumniDirectory extends Component
                 'programme_id' => $this->programmeId ?: null,
                 'graduation_year' => $this->year ?: null,
                 'verification_status' => $status?->value,
+                'ta_candidate' => $this->taOnly,
             ])
             ->orderBy('last_name')->orderBy('first_name')->orderBy('id')
             ->paginate(25);

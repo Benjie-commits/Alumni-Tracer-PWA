@@ -4,6 +4,7 @@ namespace App\Livewire\Admin;
 
 use App\Enums\EmploymentStatus;
 use App\Enums\FurtherStudyStatus;
+use App\Enums\NotificationChannel;
 use App\Livewire\Admin\Concerns\AuthorizesStaff;
 use App\Models\AlumniProfile;
 use App\Models\Programme;
@@ -125,6 +126,23 @@ class AlumniDetail extends Component
             'programmes' => Programme::query()->with('department.school')->orderBy('name')->get(),
             'employmentStatuses' => EmploymentStatus::cases(),
             'furtherStudyStatuses' => FurtherStudyStatus::cases(),
+            // Where this person stands with each survey (status only: their answers are in the survey screens).
+            'invitations' => $this->profile->surveyInvitations()->with('cycle')->orderBy('due_at')->get(),
+            'messagingStopped' => $this->profile->hasOptedOut(NotificationChannel::Sms) && $this->profile->hasOptedOut(NotificationChannel::Whatsapp),
         ]);
+    }
+
+    /**
+     * Staff can record "this person asked me to stop messaging them" (e.g. by phone or in person),
+     * or turn messages back on at their request. It applies to SMS and WhatsApp together.
+     */
+    public function toggleMessaging(): void
+    {
+        $this->authorizeManager();
+
+        $stopped = $this->profile->hasOptedOut(NotificationChannel::Sms) && $this->profile->hasOptedOut(NotificationChannel::Whatsapp);
+
+        $this->profile->setOptOut(null, ! $stopped);
+        $this->profile->save();
     }
 }

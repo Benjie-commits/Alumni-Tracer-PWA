@@ -1,7 +1,8 @@
 # SUN-ATES: Soroti University Alumni Tracking, Engagement and Tracer Study Information System
 
 Implementation of `SUN-ATES_Engineering_Specification.pdf` (v1.0). This repository currently contains
-**Phase 1**: the alumni directory, alumni self-service registration and the staff console.
+**Phase 1** (alumni directory, self-service registration, staff console) and **Phase 2** (tracer-study
+surveys and SMS/WhatsApp nudges).
 
 | Folder | What it is | Stack (per spec section 8) |
 |---|---|---|
@@ -9,14 +10,16 @@ Implementation of `SUN-ATES_Engineering_Specification.pdf` (v1.0). This reposito
 | `pwa/` | Installable alumni app | Vue 3 + Vite, Workbox service worker |
 | `scripts/` | `dev.ps1` starts/stops the local stack on Windows | PowerShell |
 
-## What Phase 1 covers
+## What is built
 
 | Spec | Status | Where |
 |---|---|---|
-| FR-1 Directory and search, filter, export | Done | Staff console: *Alumni directory* (search, School → Department → Programme, year, status, CSV export) |
+| FR-1 Directory and search, filter, export | Done | Console: *Alumni directory* (search, School → Department → Programme, year, status, teaching-assistant candidates, CSV export) |
 | FR-2 Alumni self-service and identity check | Done | PWA registration matches student number + surname + graduation year against Registrar records; profile and work history editing |
-| FR-8 Admin console, bulk import | Done | Console: CSV import with preview, verification queue, staff accounts |
-| FR-3, 4, 5, 6, 7, 9 | Not started | Phases 2 to 4 (surveys/nudges, dashboards, engagement, verification lookup, ERP hook, LinkedIn opt-in) |
+| FR-3 Automated tracer surveys + TA flag | Done | Surveys at 6 months, 1 year and 3 years, sent by WhatsApp/SMS link; answered in the PWA; strong, available graduates flagged for teaching-assistant consideration |
+| FR-7 Data-freshness nudges | Done (consent-based) | Weekly WhatsApp/SMS nudge to alumni who have not confirmed their record for a year. LinkedIn is **not** consulted: spec section 7.4 replaces it with an opt-in flow (Phase 4) |
+| FR-8 Admin console, bulk import | Done | Console: CSV import with preview, verification queue, staff accounts, surveys, message log |
+| FR-4, 5, 6, 9 | Not started | Phases 3 and 4 (outcome dashboards, engagement, credential-verification lookup, ERP hook, LinkedIn opt-in) |
 
 ## Local setup
 
@@ -29,7 +32,7 @@ cd backend
 composer install
 copy .env.example .env          # then set DB_PORT / DB_PASSWORD for your MySQL
 php artisan key:generate
-php artisan migrate --seed      # creates the schema and the four fixed roles
+php artisan migrate --seed      # schema, the four fixed roles, and the three survey questionnaires
 php artisan sunates:create-staff you@soroti.ac.ug --role=ict_admin --name="Your Name"   # prompts for a password
 
 # 2. Alumni PWA
@@ -39,8 +42,12 @@ npm install
 # 3. Run everything (Windows)
 powershell -ExecutionPolicy Bypass -File scripts\dev.ps1 start
 #   Staff console  http://127.0.0.1:8000/admin
-#   Alumni PWA     http://127.0.0.1:5173   (Vite proxies /api to :8000)
+#   Alumni PWA     http://127.0.0.1:5173   (Vite proxies /api and /u to :8000)
 ```
+
+`dev.ps1` runs MySQL, Laravel, Vite, **a queue worker and the scheduler**. Surveys and nudges are queued jobs, so
+without a worker they would sit unsent. On other platforms run `php artisan serve`, `php artisan queue:work`,
+`php artisan schedule:work` and `npm run dev` yourself.
 
 Optional fake data for local development (refuses to run outside `local`/`testing`; every school is prefixed `DEMO`):
 
@@ -50,76 +57,189 @@ php artisan db:seed --class=DemoDataSeeder
 
 `dev.ps1` expects portable PHP and MySQL under `%USERPROFILE%\tools` (`php\`, `mysql-8.4.11-winx64\`, `mysql-8.4.ini`,
 MySQL on port **3307** so it can sit beside another MySQL). Pass `-Tools <folder>` to point elsewhere. Logs go to
-`%TEMP%\sunates-dev\`. On other platforms just run `php artisan serve` and `npm run dev` yourself.
+`%TEMP%\sunates-dev\`.
 
 ### Tests
 
 ```powershell
-cd backend ; php artisan test     # 83 tests; runs against MySQL database `sunates_testing`
-cd pwa     ; npm test             # 15 tests (Node's built-in runner)
+cd backend ; php artisan test     # 317 tests; runs against MySQL database `sunates_testing`
+cd pwa     ; npm test             # 42 tests (Node's built-in runner)
 cd pwa     ; npm run build        # production bundle in pwa\dist
 ```
 
 Create the `sunates_testing` database and grant your DB user access first; `phpunit.xml` forces that database name
-so `RefreshDatabase` can never touch development data.
+so `RefreshDatabase` can never touch development data. Tests use fake SMS/WhatsApp gateways and a frozen clock: nothing
+is ever sent.
 
-## How it works
+## Registration, verification and import (Phase 1)
 
-**Registration and verification (FR-2).** Registrar records are imported as `unclaimed` profiles. When an alumnus
-registers, student number, surname and graduation year must all match one unclaimed record to be verified straight
-away (matching ignores case and extra spaces). Anything else is accepted as a self-declared claim in `pending`
-status, shown to the alumnus as "waiting for the Registrar", and appears in the console's **Verification queue**,
-where staff *link* it to the right record (e.g. a misspelt surname), *approve it as new*, or *reject* it. A failed
-match never reveals which records exist.
+**Registration (FR-2).** Registrar records are imported as `unclaimed` profiles. When an alumnus registers, student
+number, surname and graduation year must all match one unclaimed record to be verified straight away (case and extra
+spaces ignored). Anything else becomes a self-declared claim in `pending` status, shown as "waiting for the Registrar",
+and appears in the console's **Verification queue**, where staff *link* it to the right record (e.g. a misspelt
+surname), *approve it as new*, or *reject* it. A failed match never reveals which records exist.
 
 **Bulk import (FR-8).** *Import from spreadsheet* takes a CSV export. Required columns: Student number, First name,
 Surname. Optional: Other names, Gender, School, Department, Programme, Graduation year/date (dd/mm/yyyy or
 yyyy-mm-dd), Class of award, Date of birth, Email, Phone. Headings are matched loosely ("Reg No", "Faculty",
-"Course"). *Preview* runs the full import inside a transaction and rolls it back, so the report is exactly what
-committing would do. Rows are matched on student number, so re-importing is safe: Registrar-owned fields are refreshed,
-alumni-entered contact details are never overwritten, and blank cells never erase data. Schools, departments and
-programmes are created on the fly. Bad rows are skipped with a row number and reason.
+"Course"). *Preview* runs the whole import in a transaction and rolls it back, so the report is exactly what committing
+would do. Rows are matched on student number, so re-importing is safe: Registrar-owned fields are refreshed,
+alumni-entered contact details are never overwritten, and blank cells never erase data.
 
-**Access (spec section 9).**
+## Tracer surveys (FR-3, Phase 2)
 
-| | Alumni PWA / API | Directory (names, programme, outcomes) | Contact details, export of them, editing | Verification queue, import | Staff accounts |
-|---|:-:|:-:|:-:|:-:|:-:|
-| Alumni | own record only | | | | |
-| Registrar | | yes | yes | yes | |
-| ICT admin | | yes | yes | yes | yes |
-| QA / Dean viewer | | yes (read-only) | **no** | | |
+**The cycle.** Every morning (09:00 Uganda time) `php artisan sunates:surveys` runs:
 
-Alumni use the API with bearer tokens (30 days, one per device). Staff use session sign-in to the console; staff
-cannot use the alumni API and alumni cannot enter the console. QA/Dean viewers deliberately receive no personal
-contact details (not in pages, search, exports or the browser payload). Confirm this with the Registrar and QA
-Directorate; relaxing it is a small change in `AlumniDirectory`, `AlumniDetail` and `AlumniExportController`.
+1. closes invitations whose window has passed;
+2. invites everyone whose **6-month, 1-year or 3-year** milestone has arrived (graduation date + 6/12/36 months; if the
+   Registrar only has a year, the end of that year is assumed so nobody is surveyed early);
+3. sends reminders (day 7 and day 21 after the first message) to those who have not answered.
+
+It is safe to run repeatedly: there is one invitation per alumnus per milestone, so nobody is messaged twice. An invitation
+stays open for **90 days** after its milestone. **Only invitations whose window is still open are created**, so switching the
+system on does not message everyone who graduated years ago (there is deliberately no back-fill; see *To confirm*). Use
+`php artisan sunates:surveys --dry-run` to see exactly who would be invited before going live; the console's **Tracer
+surveys** page shows the same counts plus who reaches each milestone in the next 30 days.
+
+**The message.** WhatsApp first, falling back to SMS, with a link `…/s/<private token>`. Opening it works on any phone
+with no sign-in; the token is the credential, shows only the person's first name, and is rate-limited. Registered
+alumni also see waiting surveys on their profile. A message that cannot be sent (no number, opted out, provider refuses)
+never blocks the survey: it stays open in the app and the failure is listed under **Messages** in the console.
+
+**The form.** Questions appear or disappear as answers change (e.g. employer questions only for people who work).
+Submissions are **idempotent**: the phone picks a submission id first, so a retry after a dropped connection is
+recognised instead of duplicated. If the connection is lost, answers are **queued on the phone and sent automatically**
+when the app opens, when the connection returns, or when the app comes back to the foreground, so iPhones (which cannot
+retry in the background) are covered. Confirmed answers are deleted from the phone at once.
+
+**Questionnaires** live in `backend/config/tracer_surveys.php`. They are a **starting point, not the official NCHE
+instrument** (the spec does not include it). Have the QA Directorate compare them with NCHE's guidance, edit the file,
+then run `php artisan sunates:sync-surveys`. Each change creates a new immutable version; answers already collected stay
+attached to the exact wording they were given for, and the console shows and exports them that way.
+
+**What an answer does.** It is stored, and also updates the alumnus's employment and further-study status on their
+profile and counts as them confirming their record (so they are not nudged). **Teaching-assistant flag:** a graduate whose
+class of award is *First Class* or *Second Class Upper* (`ta_eligible_classes` in `config/sunates.php`) who answers yes
+to the TA question is flagged; staff can filter the directory by it. Individual answers and the CSV export (one column
+per question, for NCHE reporting) are visible to Registrar and ICT staff only; QA/Dean viewers see response *rates*.
+
+## Messages and nudges (Phase 2)
+
+All messages go through one service (`NotificationService`): it works out which channels a person can be reached on,
+respects opt-outs, tries WhatsApp then SMS, and logs every attempt (channel, template, status). The message text is
+deliberately **not** stored, because survey messages contain a private link.
+
+- **Quiet hours:** nothing is sent 19:00 to 08:00 Uganda time; queued messages wait for the morning.
+- **Stopping messages:** every SMS ends with a link to a "stop" page (opening it changes nothing until the button is
+  pressed, because messaging apps pre-fetch links); replying STOP on WhatsApp stops every channel; alumni can switch SMS
+  and WhatsApp off in the app; staff can record a request made by phone. SMS and WhatsApp can be stopped independently.
+- **Failures:** a temporary provider problem (timeout, rate limit, expired token) retries with back-off and does *not*
+  fall through to the other channel, to avoid messaging someone twice; a permanent refusal (not on WhatsApp, bad
+  number) moves to the next channel.
+- **Nudges (FR-7):** `php artisan sunates:nudges` runs weekly. A record is stale if the alumnus has not edited it or
+  answered a survey for **a year**. At most one nudge per quarter and three a year; nothing to anyone who heard from us
+  in the last 14 days; a daily cap (default 200) protects the SMS budget; `--dry-run` shows who would be nudged.
+- **Delivery receipts:** WhatsApp reports by webhook (signature-checked, receipts that arrive out of order never move a
+  message backwards). MTN is polled every 15 minutes (`sunates:sync-delivery-status`).
+- **Console → Messages** shows the log, 30-day counts, and (ICT) a **send a test message** form for checking credentials.
+
+### Going live with MTN SMS and WhatsApp
+
+Messaging runs in **log-only mode** (`SMS_DRIVER=log`, `WHATSAPP_DRIVER=log`) until configured: messages are written
+to `storage/logs/laravel.log` and nothing is sent. To go live, with the Directorate of ICT:
+
+1. **MTN:** register on developers.mtn.com, subscribe to the SMS API, put the credentials in `backend/.env`
+   (`MTN_SMS_CLIENT_ID`, `MTN_SMS_CLIENT_SECRET`, `MTN_SMS_SENDER`; override `MTN_SMS_BASE_URL` / `MTN_SMS_TOKEN_URL` if
+   MTN gives sandbox values), set `SMS_DRIVER=mtn`, then use **Messages → Send a test message**.
+2. **WhatsApp:** create a Meta Business app with the WhatsApp Cloud API, fill `WHATSAPP_PHONE_NUMBER_ID`,
+   `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, choose a `WHATSAPP_VERIFY_TOKEN`, and set `WHATSAPP_DRIVER=cloud`.
+   Register the webhook `https://<your-domain>/api/webhooks/whatsapp` (subscribe to *messages*).
+3. **Create four message templates** in Meta Business Manager (business-initiated messages must use approved templates;
+   names are configurable in `config/sunates.php`). Suggested bodies, with `{{n}}` filled in this order:
+   `sunates_survey_invite`: "Hi {{1}}, Soroti University would like to hear how you are doing {{2}} after graduating. It
+   takes 2 minutes: {{3}}" · `sunates_survey_reminder`: "Hi {{1}}, your Soroti University graduate survey is still open.
+   It takes 2 minutes: {{2}}" · `sunates_profile_nudge`: "Hi {{1}}, please confirm your Soroti University alumni details
+   are up to date: {{2}}" · `sunates_register_invite`: "Hi {{1}}, join the Soroti University alumni network and keep
+   your details current: {{2}}". Add a footer such as "Reply STOP to stop messages". Meta decides each template's category
+   and therefore its price; confirm with ICT.
+4. Set `SUNATES_PWA_URL` and `APP_URL` to the real https addresses (survey links and the stop link are built from them).
+
+> **Honesty note:** both provider adapters are built to the providers' published API documentation and tested against
+> faked HTTP responses. They have **not** been run against live MTN or Meta accounts (that needs the university's
+> credentials). Use the test-message form before relying on them; every URL is configurable.
+
+### Production: the two background processes
+
+Surveys, reminders and nudges only happen if both of these are running:
+
+```
+# cron, every minute: runs the daily/weekly jobs
+* * * * * cd /var/www/sunates/backend && php artisan schedule:run >> /dev/null 2>&1
+
+# Supervisor (or systemd): keeps the queue worker alive
+php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+```
+
+After each deployment: `php artisan migrate --force && php artisan sunates:sync-surveys`.
+
+## Access (spec section 9)
+
+| | Alumni PWA / API | Directory (names, programme, outcomes) | Contact details, editing | Verification queue, import, **individual survey answers, message log** | Surveys overview and rates | Staff accounts, test messages |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| Alumni | own record only | | | | | |
+| Registrar | | yes | yes | yes | yes | |
+| ICT admin | | yes | yes | yes | yes | yes |
+| QA / Dean viewer | | yes (read-only) | **no** | **no** | yes | |
+
+Alumni use the API with bearer tokens (30 days, one per device). Staff use session sign-in to the console; staff cannot
+use the alumni API and alumni cannot enter the console. QA/Dean viewers deliberately receive no personal contact details
+(not in pages, search, exports or the browser payload). Confirm this with the Registrar and QA Directorate.
 
 ### API (`/api/v1`)
 
 Public: `GET reference/programmes`, `GET reference/options`, `POST auth/register` (5/min/IP), `POST auth/login`
-(5/min per email+IP). Alumni (bearer token): `POST auth/logout`, `GET me`, `GET|PUT me/profile`,
-`GET|POST me/employment-records`, `PUT|DELETE me/employment-records/{id}`. Alumni can change only contact,
-location and outcome fields; the academic record is Registrar-owned.
+(5/min per email+IP), `GET surveys/{token}` and `POST surveys/{token}/responses` (30/min/IP; the token is the credential).
+Alumni (bearer token): `POST auth/logout`, `GET me`, `GET|PUT me/profile`, `GET|POST me/employment-records`,
+`PUT|DELETE me/employment-records/{id}`, `GET me/surveys`, `GET|PUT me/notification-preferences`.
+Provider callbacks: `GET|POST /api/webhooks/whatsapp` (verify token + `X-Hub-Signature-256`). Server-rendered:
+`GET|POST /u/{token}` ("stop messaging me").
 
 ## Design decisions worth knowing
 
-- **Freshness date.** `alumni_profiles.profile_updated_at` means "the alumnus themselves confirmed this". Staff edits do
-  not move it. Phase 2's data-freshness nudges (FR-7) depend on that.
+- **Freshness date.** `alumni_profiles.profile_updated_at` means "the alumnus themselves confirmed this" (a profile
+  edit or a survey answer). Staff edits do not move it. The nudge engine depends on that.
 - **Nothing personal is cached on the phone.** The service worker caches the app shell and the public reference lists
-  only; the token is the only thing in `localStorage`. Alumni often use shared phones. This is checked by the
-  browser end-to-end run.
-- **Export safety.** Alumni type their own names and employers, so CSV cells beginning `= + - @` are prefixed with `'`
-  to stop spreadsheet formulas running when staff open an export (real phone numbers are left alone).
-- **CORS** is limited to `CORS_ALLOWED_ORIGINS` (default: the Vite dev server). In production, serve the PWA from the
-  same origin as the API and no CORS is needed.
+  only; the token is the only thing kept in `localStorage`, plus survey answers that are waiting to send (deleted once
+  confirmed). Alumni often use shared phones. The browser end-to-end runs check this.
+- **App-level offline queue, not Workbox Background Sync.** It works identically on Android and iOS and avoids storing
+  credentials in a service-worker queue.
+- **Export safety.** CSV cells beginning `= + - @` are prefixed with `'` so spreadsheet formulas typed by alumni cannot run
+  when staff open an export (real phone numbers are left alone).
+- **CORS** is limited to `CORS_ALLOWED_ORIGINS`. In production, serve the PWA from the same origin as the API.
 - **No default credentials anywhere.** Staff accounts come from `sunates:create-staff` or the console.
 
-## Open items for the Registrar / ICT (spec section 14)
+## To confirm with the Registrar / QA Directorate / ICT
+
+- **The questionnaires** are a draft, not the NCHE instrument (see above).
+- **Contacting alumni who have not registered.** By default they are neither surveyed nor nudged
+  (`SURVEY_INCLUDE_UNCLAIMED`, `NUDGES_INCLUDE_UNCLAIMED`), because they have not been through the consent step. Most of
+  the alumni base starts in this state, so this decides how many people the first survey reaches. Decide it as part of
+  the data-protection review (spec section 4).
+- **No back-fill.** Graduates whose 6-month/1-year/3-year window closed before launch are never surveyed. A one-off
+  survey for them is possible but is a separate decision.
+- **Timing and limits:** 90-day window, reminders at day 7 and 21, quiet hours 19:00 to 08:00, nudges after a year of
+  silence, one per quarter, three per year, daily cap 200. All in `config/sunates.php`.
+- **Teaching-assistant criteria:** First Class / Second Class Upper plus a yes. Confirm the class-of-award wording the
+  Registrar actually uses.
+- **Survey answers update the profile** (employment and further-study status) and count as confirming the record.
+- **WhatsApp first, then SMS.** Reverse the order in `channel_priority` if SMS is cheaper or more reliable.
+
+## Open items
 
 - Spreadsheet import is CSV only; add `.xlsx` if the Registrar's files cannot easily be saved as CSV UTF-8.
-- Production hosting, domain, TLS and backup schedule (spec section 10) are still to be confirmed with ICT; SMS (MTN) and
-  WhatsApp (Cloud API) credentials are not needed until Phase 2.
-- The data-protection review (spec section 4) should complete before alumni data is collected at scale. The consent
-  wording on the registration screen is a draft for that review.
+- Production hosting, domain, TLS and backups (spec section 10) are still to be confirmed with ICT.
+- The data-protection review should complete before alumni data is collected at scale. The consent wording on the
+  registration screen is a draft for that review.
 - Reference-data screens (rename or merge schools, departments, programmes) are not built; the import creates them.
 - The PWA has no password reset yet (needs an email or SMS channel decision).
+- Surveys are in English only; Luganda/Ateso translations would need per-language questionnaire versions.

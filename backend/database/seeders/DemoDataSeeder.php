@@ -26,7 +26,7 @@ class DemoDataSeeder extends Seeder
             throw new RuntimeException('DemoDataSeeder only runs in local or testing environments.');
         }
 
-        $this->call(RoleSeeder::class);
+        $this->call([RoleSeeder::class, SurveyCycleSeeder::class]);
 
         $programmes = collect([
             'DEMO School of Science' => ['DEMO Biology' => ['BSc Demo Biology', 'BSc Demo Chemistry'], 'DEMO Computing' => ['BSc Demo Computer Science']],

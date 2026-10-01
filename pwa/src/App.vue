@@ -3,8 +3,21 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from './api.js'
 import { endSession, isSignedIn } from './session.js'
+import { dismissSurveyProblems, pendingSurveyCount, surveyProblems, syncSurveys } from './survey/sync.js'
 
 const router = useRouter()
+const sendingNow = ref(false)
+
+async function sendSurveysNow() {
+  sendingNow.value = true
+  try {
+    await syncSurveys()
+  } catch {
+    /* still offline: the banner stays and the automatic retries carry on */
+  } finally {
+    sendingNow.value = false
+  }
+}
 const online = ref(navigator.onLine)
 const setOnline = () => (online.value = navigator.onLine)
 
@@ -36,6 +49,16 @@ async function signOut() {
 
   <p v-if="!online" class="offline" role="status">
     You're offline. You can look around, but changes can't be saved until you reconnect.
+  </p>
+
+  <p v-if="pendingSurveyCount > 0" class="queued" role="status">
+    {{ pendingSurveyCount === 1 ? 'A survey answer is' : `${pendingSurveyCount} survey answers are` }} saved on your phone and will be sent as soon as you're online.
+    <button type="button" class="link" :disabled="sendingNow" @click="sendSurveysNow">{{ sendingNow ? 'Trying…' : 'Send now' }}</button>
+  </p>
+
+  <p v-if="surveyProblems.length" class="alert bad problems" role="alert">
+    {{ surveyProblems.length === 1 ? 'One survey answer' : `${surveyProblems.length} survey answers` }} could not be accepted (the survey may have closed or was already completed).
+    <button type="button" class="link" @click="dismissSurveyProblems">Dismiss</button>
   </p>
 
   <main class="page">

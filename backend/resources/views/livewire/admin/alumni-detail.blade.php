@@ -5,6 +5,9 @@
             <a href="{{ route('admin.alumni.index') }}" class="small">← Alumni directory</a>
             <h1>{{ $profile->full_name }}</h1>
             <span class="pill {{ $profile->verification_status->value }}">{{ $profile->verification_status->label() }}</span>
+            @if ($profile->ta_flagged_at)
+                <span class="pill" title="Strong graduate who said they are available as a teaching assistant">Teaching-assistant candidate</span>
+            @endif
             <span class="muted small">
                 · {{ $profile->record_source->label() }}
                 @if ($profile->user) · account {{ $ro ? 'registered' : $profile->user->email }}, last sign-in {{ $profile->user->last_login_at?->diffForHumans() ?? 'never' }} @else · no account yet @endif
@@ -142,4 +145,48 @@
             </tbody>
         </table>
     </div>
+
+    <div class="panel">
+        <h2>Tracer surveys</h2>
+        <table>
+            <thead><tr><th>Survey</th><th>Due</th><th>Status</th><th>Reminders</th></tr></thead>
+            <tbody>
+            @forelse ($invitations as $invitation)
+                <tr wire:key="inv{{ $invitation->id }}">
+                    <td>{{ $invitation->cycle->title }}</td>
+                    <td>{{ $invitation->due_at->setTimezone(config('sunates.timezone'))->format('j M Y') }}</td>
+                    <td>
+                        <span class="pill {{ $invitation->status === \App\Enums\SurveyInvitationStatus::Completed ? 'verified' : ($invitation->status === \App\Enums\SurveyInvitationStatus::Expired ? 'rejected' : '') }}">{{ $invitation->status->label() }}</span>
+                        @if ($invitation->completed_at)<span class="muted small">{{ $invitation->completed_at->format('j M Y') }}</span>@endif
+                    </td>
+                    <td>{{ $invitation->reminders_sent }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="4" class="empty">Not invited to any survey yet. Surveys are sent 6 months, 1 year and 3 years after graduation.</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    @unless ($ro)
+        <div class="panel">
+            <h2>Messages</h2>
+            <p style="margin-top:0">
+                SMS and WhatsApp:
+                @if ($messagingStopped)
+                    <span class="pill rejected">Stopped by the alumnus</span>
+                @else
+                    <span class="pill verified">Allowed</span>
+                    @if ($profile->hasOptedOut(\App\Enums\NotificationChannel::Sms) || $profile->hasOptedOut(\App\Enums\NotificationChannel::Whatsapp))
+                        <span class="muted small">(one channel has been switched off by the alumnus)</span>
+                    @endif
+                @endif
+            </p>
+            <button type="button" class="secondary" wire:click="toggleMessaging"
+                    wire:confirm="{{ $messagingStopped ? 'Turn SMS and WhatsApp messages back on for this person, at their request?' : 'Record that this person asked to stop SMS and WhatsApp messages?' }}">
+                {{ $messagingStopped ? 'Turn messages back on' : 'Stop messages (at their request)' }}
+            </button>
+            <p class="muted small" style="margin-bottom:0">Use this only when the alumnus has asked you. They can also stop messages themselves from any SMS, by replying STOP on WhatsApp, or in the app.</p>
+        </div>
+    @endunless
 </div>
