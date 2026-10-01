@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { api } from '../api.js'
 import { useForm } from '../useForm.js'
+import CredentialLinks from '../components/CredentialLinks.vue'
 import Field from '../components/Field.vue'
 
 const profile = ref(null)
@@ -109,6 +110,8 @@ async function save() {
       </dl>
       <p class="hint small">Something wrong here? Only the Registrar's office can change academic records.</p>
     </section>
+
+    <CredentialLinks v-if="status === 'verified'" />
 
     <form class="card" novalidate @submit.prevent="save">
       <h2>Keep your details up to date</h2>

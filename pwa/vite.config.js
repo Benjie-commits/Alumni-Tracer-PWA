@@ -30,7 +30,7 @@ export default defineConfig({
         // The app shell works offline. Personal API responses are deliberately NOT cached: alumni often
         // use shared or borrowed phones, so nothing personal may outlive the signed-in session.
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/admin/, /^\/livewire/, /^\/u\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/admin/, /^\/livewire/, /^\/u\//, /^\/verify/],
         globPatterns: ['**/*.{js,css,html,png,svg}'],
         runtimeCaching: [
           {
@@ -46,7 +46,8 @@ export default defineConfig({
   server: {
     // In development the API is proxied, so there is no cross-origin traffic at all. "/u/" is the
     // "stop messaging me" page from every SMS: a server-rendered page, not part of this app.
-    proxy: { '/api': 'http://127.0.0.1:8000', '/u': 'http://127.0.0.1:8000' },
+    // "/verify" is the employer verification page and the links alumni share: also server-rendered.
+    proxy: { '/api': 'http://127.0.0.1:8000', '/u': 'http://127.0.0.1:8000', '/verify': 'http://127.0.0.1:8000' },
   },
   build: {
     target: 'es2020',

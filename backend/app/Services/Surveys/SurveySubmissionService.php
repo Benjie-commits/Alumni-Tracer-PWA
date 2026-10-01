@@ -62,6 +62,7 @@ class SurveySubmissionService
                 'employment_status' => $mapped['employment_status'],
                 'further_study_status' => $mapped['further_study_status'],
                 'ta_interest' => $mapped['ta_interest'],
+                'started_business' => $mapped['started_business'],
                 'submitted_at' => now(),
             ]);
 
@@ -95,7 +96,7 @@ class SurveySubmissionService
      * What the alumnus just told us is also their current situation, so their profile follows. It counts
      * as confirmation too: a reply proves the phone number works and stops needless nudges.
      *
-     * @param  array{employment_status: ?string, further_study_status: ?string, ta_interest: ?bool}  $mapped
+     * @param  array{employment_status: ?string, further_study_status: ?string, ta_interest: ?bool, started_business: ?bool}  $mapped
      */
     private function updateProfile(SurveyInvitation $invitation, array $mapped): void
     {

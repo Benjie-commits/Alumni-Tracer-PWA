@@ -24,8 +24,8 @@
 |   options    [{value, label}, ...] for the two choice types
 |   min / max  for number and scale (scale defaults to 1..5, with min_label / max_label)
 |   show_if    ['key' => earlier question, 'in' => [values]]: only ask when that answer matches
-|   maps_to    employment_status | further_study_status | ta_interest: copies the answer into a
-|              column used by the outcome dashboards and the teaching-assistant flag
+|   maps_to    employment_status | further_study_status | started_business | ta_interest: copies the
+|              answer into a column used by the outcome dashboards and the teaching-assistant flag
 */
 
 $options = fn (array $pairs) => array_map(
@@ -175,6 +175,7 @@ $enterprise = [
         'type' => 'yes_no',
         'label' => 'Have you started your own business or income-generating activity since graduating?',
         'required' => true,
+        'maps_to' => 'started_business',
     ],
     [
         'key' => 'business_workers',

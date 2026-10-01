@@ -16,12 +16,19 @@
         <nav>
             <a href="{{ route('admin.dashboard') }}" @class(['active' => request()->routeIs('admin.dashboard')])>Dashboard</a>
             <a href="{{ route('admin.alumni.index') }}" @class(['active' => request()->routeIs('admin.alumni.*')])>Alumni directory</a>
+            <a href="{{ route('admin.outcomes') }}" @class(['active' => request()->routeIs('admin.outcomes*')])>Graduate outcomes</a>
             <a href="{{ route('admin.surveys') }}" @class(['active' => request()->routeIs('admin.surveys*')])>Tracer surveys</a>
             @if ($user->canManageRecords())
                 <a href="{{ route('admin.verification') }}" @class(['active' => request()->routeIs('admin.verification')])>
                     Verification queue
                     @if ($pendingCount = \App\Models\AlumniProfile::where('verification_status', \App\Enums\VerificationStatus::Pending)->count())
                         <span class="pill pending">{{ $pendingCount }}</span>
+                    @endif
+                </a>
+                <a href="{{ route('admin.verification-enquiries') }}" @class(['active' => request()->routeIs('admin.verification-enquiries')])>
+                    Employer enquiries
+                    @if ($openEnquiries = \App\Models\VerificationEscalation::where('status', \App\Enums\EscalationStatus::Open)->count())
+                        <span class="pill pending">{{ $openEnquiries }}</span>
                     @endif
                 </a>
                 <a href="{{ route('admin.notifications') }}" @class(['active' => request()->routeIs('admin.notifications')])>Messages</a>

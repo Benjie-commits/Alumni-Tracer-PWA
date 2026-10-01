@@ -2,12 +2,14 @@
 
 use App\Enums\RoleSlug;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CredentialLinkController;
 use App\Http\Controllers\Api\V1\EmploymentRecordController;
 use App\Http\Controllers\Api\V1\MySurveysController;
 use App\Http\Controllers\Api\V1\NotificationPreferenceController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ReferenceDataController;
 use App\Http\Controllers\Api\V1\SurveyController;
+use App\Http\Controllers\Api\V1\VerificationController;
 use App\Http\Controllers\Api\WhatsAppWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +20,10 @@ Route::prefix('v1')->group(function () {
 
     Route::post('auth/register', [AuthController::class, 'register'])->middleware('throttle:register');
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+
+    // Employer / partner credential verification (FR-6). Unauthenticated by design, so heavily rate-limited;
+    // answers with graduation status, programme and year only.
+    Route::post('verification/lookup', [VerificationController::class, 'lookup'])->middleware('throttle:verification');
 
     // The survey behind a link sent by SMS/WhatsApp: the unguessable token is the credential (FR-3).
     Route::middleware('throttle:survey')->group(function () {
@@ -36,6 +42,11 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('me/employment-records', EmploymentRecordController::class)
             ->parameters(['employment-records' => 'employmentRecord'])
             ->except('show');
+
+        // Verification links the alumnus gives employers.
+        Route::apiResource('me/credential-links', CredentialLinkController::class)
+            ->parameters(['credential-links' => 'credentialLink'])
+            ->only(['index', 'store', 'destroy']);
 
         Route::get('me/surveys', [MySurveysController::class, 'index']);
         Route::get('me/notification-preferences', [NotificationPreferenceController::class, 'show']);

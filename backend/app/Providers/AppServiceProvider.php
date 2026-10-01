@@ -64,5 +64,19 @@ class AppServiceProvider extends ServiceProvider
 
         // Provider callbacks: generous, but not unbounded.
         RateLimiter::for('webhook', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
+
+        // The employer verification lookup has no sign-in, so it is the one door an outsider can knock
+        // on as often as they like (spec section 9). The limit lets an HR office check a batch of
+        // graduates but makes guessing names in bulk slow and conspicuous in the log.
+        RateLimiter::for('verification', fn (Request $request) => [
+            Limit::perMinute(20)->by($request->ip()),
+            Limit::perDay(200)->by($request->ip()),
+        ]);
+
+        // "Ask the Registrar" sends a person an email's worth of work, so it is limited much harder.
+        RateLimiter::for('verification-enquiry', fn (Request $request) => [
+            Limit::perHour(5)->by($request->ip()),
+            Limit::perDay(15)->by($request->ip()),
+        ]);
     }
 }

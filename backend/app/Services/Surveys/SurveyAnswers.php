@@ -73,11 +73,11 @@ class SurveyAnswers
      *
      * @param  list<array<string, mixed>>  $questions
      * @param  array<string, mixed>  $answers
-     * @return array{employment_status: ?string, further_study_status: ?string, ta_interest: ?bool}
+     * @return array{employment_status: ?string, further_study_status: ?string, ta_interest: ?bool, started_business: ?bool}
      */
     public function mapped(array $questions, array $answers): array
     {
-        $mapped = ['employment_status' => null, 'further_study_status' => null, 'ta_interest' => null];
+        $mapped = ['employment_status' => null, 'further_study_status' => null, 'ta_interest' => null, 'started_business' => null];
 
         foreach ($questions as $question) {
             if (isset($question['maps_to']) && array_key_exists($question['key'], $answers)) {

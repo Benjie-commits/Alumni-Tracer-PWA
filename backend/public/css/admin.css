@@ -15,6 +15,16 @@
   --bad: #a3271f;
   --bad-bg: #fbe4e2;
   --radius: 6px;
+
+  /* Outcome charts: four categorical slots + a neutral "Other", fixed order, validated for adjacent
+     colour-blind separation. A segment's label always uses --viz-ink (clears 4.5:1 on every fill). */
+  --s-employed: #2a78d6;
+  --s-self: #eb6834;
+  --s-seeking: #1baf7a;
+  --s-studying: #eda100;
+  --s-other: #898781;
+  --viz-ink: #0b0b0b;
+  --viz-grid: #e1e0d9;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -32,6 +42,13 @@
     --warn-bg: #33290f;
     --bad: #f0827a;
     --bad-bg: #3a1a18;
+
+    --s-employed: #3987e5;
+    --s-self: #d95926;
+    --s-seeking: #199e70;
+    --s-studying: #c98500;
+    --s-other: #898781;
+    --viz-grid: #2c2c2a;
   }
 }
 
@@ -51,7 +68,7 @@ h2 { font-size: 16px; margin: 0 0 12px; }
 .side nav a:hover, .side nav a.active { background: rgba(255,255,255,.12); opacity: 1; }
 .side .who { margin-top: auto; padding: 16px 20px 0; font-size: 12px; border-top: 1px solid rgba(255,255,255,.2); }
 .side .who button { margin-top: 8px; }
-.main { padding: 28px 36px 60px; max-width: 1400px; }
+.main { padding: 28px 36px 60px; max-width: 1400px; min-width: 0; }   /* min-width:0 lets wide content scroll inside its panel instead of widening the page */
 .head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; gap: 16px; }
 
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px; }
@@ -101,3 +118,58 @@ tr:hover td { background: color-mix(in srgb, var(--brand) 5%, transparent); }
 .login .panel { padding: 26px; }
 .login .field { margin-bottom: 14px; }
 .empty { padding: 30px; text-align: center; color: var(--muted); }
+
+
+/* ---- Outcome dashboards ------------------------------------------------------------------ */
+.viz { transition: opacity .15s; }
+.viz.is-loading { opacity: .55; }                      /* keep the frame while data refreshes */
+
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+.stat .v { font-size: 30px; font-weight: 650; line-height: 1.1; }   /* proportional figures on purpose */
+.stat .l { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+.stat .d { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 14px; font-size: 13px; color: var(--ink); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+.bars { display: grid; grid-template-columns: minmax(150px, 230px) 1fr 84px; gap: 10px 14px; align-items: center; }
+.bars .name { font-size: 13px; overflow-wrap: anywhere; }
+.bars .count { font-size: 12px; color: var(--muted); text-align: right; }
+.bars .rule { grid-column: 1 / -1; border: 0; border-top: 1px solid var(--viz-grid); margin: 2px 0; }
+.bars .small-n { grid-column: 2 / 4; font-size: 12px; color: var(--muted); font-style: italic; }
+
+/* Thin bar, 2px surface gap between segments, rounded data-ends only. */
+.bar { position: relative; display: flex; gap: 2px; height: 16px; }
+.bar.tall { height: 24px; }
+.seg { position: relative; min-width: 2px; height: 100%; display: flex; align-items: center; justify-content: center;
+       font-size: 12px; font-weight: 650; color: var(--viz-ink); cursor: default; outline-offset: 2px; }
+.seg:first-child { border-radius: 4px 0 0 4px; }
+.seg:last-child { border-radius: 0 4px 4px 0; }
+.seg:only-child { border-radius: 4px; }
+.seg:hover, .seg:focus-visible { filter: brightness(1.12); }
+.seg.employed { background: var(--s-employed); }
+.seg.self_employed { background: var(--s-self); }
+.seg.unemployed { background: var(--s-seeking); }
+.seg.further_study { background: var(--s-studying); }
+.seg.other { background: var(--s-other); }
+
+/* Tooltip: shows the same detail on hover and keyboard focus; never the only way to read a value (the table below has them all). */
+.seg::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+              background: var(--ink); color: var(--panel); padding: 6px 9px; border-radius: 6px; font-size: 12px; font-weight: 500;
+              white-space: nowrap; pointer-events: none; z-index: 5;
+              display: none; }   /* display:none, not opacity:0: an invisible tooltip would still widen the page */
+.seg:hover::after, .seg:focus-visible::after { display: block; }
+
+.viz table td.num, .viz table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.viz table .muted-row td { color: var(--muted); font-style: italic; }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: baseline; }
+
+.scroll-x { overflow-x: auto; }
+
+/* Outcome table: the group name gets room, the many numeric columns stay compact and may wrap their headings. */
+.viz .outcome-table th { white-space: normal; font-size: 11px; padding: 8px 6px; vertical-align: bottom; }
+.viz .outcome-table td { padding: 8px 6px; }
+.viz .outcome-table th:first-child, .viz .outcome-table td:first-child { min-width: 190px; padding-left: 0; }
+.viz .outcome-table { min-width: 880px; }
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 20px; }

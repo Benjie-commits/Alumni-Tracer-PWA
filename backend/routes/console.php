@@ -22,6 +22,9 @@ Schedule::command('sunates:nudges')->weeklyOn(2, '10:00')->timezone($timezone)->
 // Poll the SMS provider for delivery receipts.
 Schedule::command('sunates:sync-delivery-status')->everyFifteenMinutes()->withoutOverlapping()->onOneServer();
 
+// Retention: old lookup logs, resolved enquiries and dead credential links.
+Schedule::command('sunates:prune-verification-data')->monthlyOn(1, '03:00')->timezone($timezone)->onOneServer();
+
 // Housekeeping: expired API tokens and finished job records.
 Schedule::command('sanctum:prune-expired --hours=24')->daily()->onOneServer();
 Schedule::command('queue:prune-failed --hours=720')->weekly()->onOneServer();

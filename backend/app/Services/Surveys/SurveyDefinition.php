@@ -14,7 +14,7 @@ final class SurveyDefinition
 {
     public const TYPES = ['single_choice', 'multi_choice', 'text', 'long_text', 'number', 'scale', 'yes_no'];
 
-    private const MAPPINGS = ['employment_status', 'further_study_status', 'ta_interest'];
+    private const MAPPINGS = ['employment_status', 'further_study_status', 'ta_interest', 'started_business'];
 
     /**
      * @param  array<string, mixed>  $definition
@@ -161,7 +161,7 @@ final class SurveyDefinition
         }
         $mapped[$target] = true;
 
-        $expected = $target === 'ta_interest' ? 'yes_no' : 'single_choice';
+        $expected = in_array($target, ['ta_interest', 'started_business'], true) ? 'yes_no' : 'single_choice';
         if ($question['type'] !== $expected) {
             throw new InvalidArgumentException("{$where}: a question mapped to {$target} must be {$expected}.");
         }

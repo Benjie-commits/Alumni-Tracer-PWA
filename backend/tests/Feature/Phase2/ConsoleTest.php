@@ -445,7 +445,7 @@ class ConsoleTest extends Phase2TestCase
 
         $page = $this->actingAs($this->qa())->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('Tracer survey response rate')
+            ->assertSee('Tracer surveys answered so far')
             ->assertSee('100%')
             ->assertSee('Teaching-assistant candidates');
 

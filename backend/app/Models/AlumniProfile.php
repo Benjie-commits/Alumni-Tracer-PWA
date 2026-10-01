@@ -100,6 +100,11 @@ class AlumniProfile extends Model
         return $this->hasMany(NotificationLog::class);
     }
 
+    public function credentialLinks(): HasMany
+    {
+        return $this->hasMany(CredentialLink::class);
+    }
+
     public function hasOptedOut(NotificationChannel $channel): bool
     {
         return match ($channel) {
@@ -135,6 +140,23 @@ class AlumniProfile extends Model
         [$month, $day] = array_map('intval', explode('-', config('sunates.surveys.fallback_graduation_month_day')));
 
         return Carbon::create($this->graduation_year, $month, $day)->startOfDay();
+    }
+
+    /**
+     * Graduates we can confirm to an employer (FR-6): a record the Registrar actually holds (it has a
+     * student number), whose graduation has happened. A claim someone typed in themselves, even one
+     * staff approved as new, is never confirmed on its own say-so.
+     */
+    public function scopeVerifiable(Builder $query): Builder
+    {
+        $today = now(config('sunates.timezone'))->toDateString();
+
+        return $query
+            ->whereIn('verification_status', [VerificationStatus::Unclaimed, VerificationStatus::Verified])
+            ->whereNotNull('student_number')
+            ->whereNotNull('graduation_year')
+            ->where('graduation_year', '<=', (int) substr($today, 0, 4))
+            ->where(fn (Builder $q) => $q->whereNull('graduation_date')->orWhere('graduation_date', '<=', $today));
     }
 
     /** Strong graduates who said they are available for teaching-assistant work (FR-3). */

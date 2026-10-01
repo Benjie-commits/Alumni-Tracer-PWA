@@ -67,6 +67,35 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Credential verification (FR-6)
+    |--------------------------------------------------------------------------
+    */
+    'verification' => [
+        // Spec section 9: lookup logs are kept apart from profile data. Name a second connection from
+        // config/database.php to put them in their own database; null keeps them in the main one.
+        'connection' => env('VERIFICATION_DB_CONNECTION'),
+
+        // Lookup logs name employers and the people they asked about. Keep them as long as an audit
+        // might need them, then delete them.
+        'log_retention_days' => (int) env('VERIFICATION_LOG_RETENTION_DAYS', 730),
+
+        // How long a link an alumnus gives an employer keeps working.
+        'link_valid_days' => (int) env('VERIFICATION_LINK_VALID_DAYS', 90),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Outcome dashboards (FR-4)
+    |--------------------------------------------------------------------------
+    */
+    'dashboards' => [
+        // Groups with fewer respondents than this are shown as "fewer than N" with no percentages, so
+        // a table by small programme cannot reveal what one identifiable graduate answered.
+        'min_cell_size' => (int) env('DASHBOARD_MIN_CELL_SIZE', 5),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Messaging
     |--------------------------------------------------------------------------
     */

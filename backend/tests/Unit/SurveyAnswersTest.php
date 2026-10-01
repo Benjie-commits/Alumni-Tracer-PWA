@@ -142,7 +142,7 @@ class SurveyAnswersTest extends TestCase
         $clean = $this->answers->validate($version, $this->good(['ta' => true]));
 
         $this->assertSame(
-            ['employment_status' => 'employed', 'further_study_status' => null, 'ta_interest' => true],
+            ['employment_status' => 'employed', 'further_study_status' => null, 'ta_interest' => true, 'started_business' => null],
             $this->answers->mapped($version->questions(), $clean)
         );
     }

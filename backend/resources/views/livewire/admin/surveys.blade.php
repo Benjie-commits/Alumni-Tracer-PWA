@@ -33,7 +33,7 @@
             <div class="cards" style="margin-top:14px">
                 <div class="card"><div class="n">{{ number_format($row['total']) }}</div><div class="l">Invited so far</div></div>
                 <div class="card"><div class="n">{{ number_format($row['completed']) }}</div><div class="l">Completed</div></div>
-                <div class="card"><div class="n">{{ $row['rate'] === null ? '—' : $row['rate'].'%' }}</div><div class="l">Response rate</div></div>
+                <div class="card"><div class="n">{{ $row['rate'] === null ? '—' : $row['rate'].'%' }}</div><div class="l">Answered so far</div></div>
                 <div class="card"><div class="n">{{ number_format($row['sent'] + $row['scheduled']) }}</div><div class="l">Still open</div></div>
                 <div class="card"><div class="n">{{ number_format($row['expired']) }}</div><div class="l">Expired unanswered</div></div>
                 <div class="card"><div class="n">{{ number_format($row['dueToday']) }}</div><div class="l">Due for an invitation today</div></div>

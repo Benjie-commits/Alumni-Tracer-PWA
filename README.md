@@ -1,8 +1,8 @@
 # SUN-ATES: Soroti University Alumni Tracking, Engagement and Tracer Study Information System
 
 Implementation of `SUN-ATES_Engineering_Specification.pdf` (v1.0). This repository currently contains
-**Phase 1** (alumni directory, self-service registration, staff console) and **Phase 2** (tracer-study
-surveys and SMS/WhatsApp nudges).
+**Phase 1** (alumni directory, self-service registration, staff console), **Phase 2** (tracer-study surveys and
+SMS/WhatsApp nudges) and **Phase 3** (outcome dashboards and employer credential verification).
 
 | Folder | What it is | Stack (per spec section 8) |
 |---|---|---|
@@ -18,8 +18,11 @@ surveys and SMS/WhatsApp nudges).
 | FR-2 Alumni self-service and identity check | Done | PWA registration matches student number + surname + graduation year against Registrar records; profile and work history editing |
 | FR-3 Automated tracer surveys + TA flag | Done | Surveys at 6 months, 1 year and 3 years, sent by WhatsApp/SMS link; answered in the PWA; strong, available graduates flagged for teaching-assistant consideration |
 | FR-7 Data-freshness nudges | Done (consent-based) | Weekly WhatsApp/SMS nudge to alumni who have not confirmed their record for a year. LinkedIn is **not** consulted: spec section 7.4 replaces it with an opt-in flow (Phase 4) |
-| FR-8 Admin console, bulk import | Done | Console: CSV import with preview, verification queue, staff accounts, surveys, message log |
-| FR-4, 5, 6, 9 | Not started | Phases 3 and 4 (outcome dashboards, engagement, credential-verification lookup, ERP hook, LinkedIn opt-in) |
+| FR-4 Outcome dashboards | Done | Console: *Graduate outcomes*: employment, further study and entrepreneurship by School / Department / Programme / year, with export. Small groups are withheld |
+| FR-6 Credential verification | Done | `/verify` web page and `POST /api/v1/verification/lookup` for employers and partners; alumni can give an employer a private verification link; "ask the Registrar" escalation |
+| FR-8 Admin console, bulk import | Done | Console: CSV import with preview, verification queue, staff accounts, surveys, message log, employer enquiries |
+| FR-9 SorotiUniERP hook, LinkedIn opt-in | Not started | Phase 4 (waits on the ERP being active) |
+| FR-5 Engagement (events, mentorship, jobs) | **Not scheduled** | Listed as a requirement but the spec's phase plan (section 11) does not assign it to any phase |
 
 ## Local setup
 
@@ -62,8 +65,8 @@ MySQL on port **3307** so it can sit beside another MySQL). Pass `-Tools <folder
 ### Tests
 
 ```powershell
-cd backend ; php artisan test     # 317 tests; runs against MySQL database `sunates_testing`
-cd pwa     ; npm test             # 42 tests (Node's built-in runner)
+cd backend ; php artisan test     # 435 tests; runs against MySQL database `sunates_testing`
+cd pwa     ; npm test             # 46 tests (Node's built-in runner)
 cd pwa     ; npm run build        # production bundle in pwa\dist
 ```
 
@@ -182,14 +185,63 @@ php artisan queue:work --sleep=3 --tries=3 --max-time=3600
 
 After each deployment: `php artisan migrate --force && php artisan sunates:sync-surveys`.
 
+## Outcome dashboards (FR-4, Phase 3)
+
+*Graduate outcomes* in the console shows what graduates are doing: **employment** (employed, self-employed, seeking
+work, studying full time, other), **further study** (studying now or planning to) and **entrepreneurship** (started a
+business), as stat tiles, a stacked bar per group and a full table. Compare by School, Department, Programme or
+graduation year; narrow by any of those and by graduation-year range; export exactly what is on screen to CSV. It is open
+to every staff role (Deans, QA and Top Management use the QA/Dean viewer role) because it shows aggregates only.
+
+- **Two data sources.** *Tracer surveys* (the rigorous one: pick the 6-month, 1-year or 3-year survey, or each alumnus's
+  most recent answer, so people are counted once, not once per survey) or *alumni profiles* (the latest status graduates
+  recorded themselves, available from day one before any survey has come back; it has no "started a business" figure).
+- **Small groups are withheld.** A group with fewer than **5** respondents (`DASHBOARD_MIN_CELL_SIZE`) is shown as
+  "fewer than 5" with no percentages, on screen and in the export, so a table cut finely enough cannot reveal what one
+  identifiable graduate said. The same rule hides a whole view that is too small.
+- **Response rate** is answered / *closed* surveys (answered + expired); surveys still open are not counted as missed.
+  For the profile source the equivalent is "graduate records with a known status".
+- Charts use a colour-blind-checked palette (see `public/css/admin.css`); every figure is also in the table and in
+  hover/keyboard tooltips, and each bar has a text equivalent for screen readers.
+
+## Credential verification (FR-6, Phase 3)
+
+Employers and partner institutions can check that someone graduated, without contacting the Registrar.
+
+- **The page** is `/verify` (server-rendered, no sign-in, no app). Enter the organisation, the graduate's full name and,
+  optionally, programme and year. **Partners** can call `POST /api/v1/verification/lookup` with the same fields.
+- **What comes back** is `verified` / `not_found` / `ambiguous`, and for a verified graduate **programme and graduation
+  year only**: never a student number, contact details, class of award or school (spec section 9).
+- **Only Registrar-held records can be verified:** a record with a student number whose graduation has happened. A claim
+  someone typed in themselves, even one staff approved as new, is never confirmed.
+- **It never lists candidates.** If a name fits several graduates the answer is "ambiguous" and describes none of them;
+  adding programme and year usually settles it. Names match in any order, ignoring case, accents, hyphens and
+  apostrophes, as whole words ("Amina" does not match "Aminata"). A single name or initials are refused as too vague.
+- **Not found or unclear?** The page offers "Ask the Registrar's office to check". The enquiry (organisation, contact
+  details, what was asked) appears under **Employer enquiries** in the console for Registrar/ICT staff, who reply from
+  their own email and mark it dealt with.
+- **Alumni can give employers a link.** In the app, a verified graduate creates a private link (`/verify/<token>`,
+  90 days, up to 5 at a time, withdrawable). The employer sees their name, programme and year confirmed. The alumnus
+  sees how often each was opened. Links stop working if the graduate can no longer be confirmed.
+- **Abuse limits:** the lookup is unauthenticated, so it is limited to 20 per minute and 200 per day per address,
+  enquiries to 5 per hour, and enquiries carry a hidden bot trap. Every lookup is logged, including ones that find nobody.
+- **The log is kept apart from profile data** (spec section 9): `credential_verification_requests` holds only who asked,
+  what they typed and what we answered, with no profile data and no foreign keys, so it can be moved to its own database
+  by setting `VERIFICATION_DB_CONNECTION` to a second connection in `config/database.php`. It is deleted after 730 days
+  (`sunates:prune-verification-data`, monthly), along with resolved enquiries and long-dead links; unresolved enquiries
+  are never pruned.
+- **Production routing:** `/verify` and `/u` are served by Laravel, not the PWA. Route them (with `/api`, `/admin` and
+  `/livewire`) to PHP-FPM in Nginx, and everything else to the PWA's `index.html`.
+
 ## Access (spec section 9)
 
-| | Alumni PWA / API | Directory (names, programme, outcomes) | Contact details, editing | Verification queue, import, **individual survey answers, message log** | Surveys overview and rates | Staff accounts, test messages |
+| | Alumni PWA / API | Directory (names, programme, outcomes) | Contact details, editing | Verification queue, import, **individual survey answers, message log, employer enquiries** | Outcome dashboards, surveys overview | Staff accounts, test messages |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
 | Alumni | own record only | | | | | |
 | Registrar | | yes | yes | yes | yes | |
 | ICT admin | | yes | yes | yes | yes | yes |
 | QA / Dean viewer | | yes (read-only) | **no** | **no** | yes | |
+| Employer / partner (no account) | | | | | | `/verify` only |
 
 Alumni use the API with bearer tokens (30 days, one per device). Staff use session sign-in to the console; staff cannot
 use the alumni API and alumni cannot enter the console. QA/Dean viewers deliberately receive no personal contact details
@@ -201,8 +253,9 @@ Public: `GET reference/programmes`, `GET reference/options`, `POST auth/register
 (5/min per email+IP), `GET surveys/{token}` and `POST surveys/{token}/responses` (30/min/IP; the token is the credential).
 Alumni (bearer token): `POST auth/logout`, `GET me`, `GET|PUT me/profile`, `GET|POST me/employment-records`,
 `PUT|DELETE me/employment-records/{id}`, `GET me/surveys`, `GET|PUT me/notification-preferences`.
+Employer verification (no sign-in, rate-limited): `POST verification/lookup`. Alumni also: `GET|POST me/credential-links`, `DELETE me/credential-links/{id}`.
 Provider callbacks: `GET|POST /api/webhooks/whatsapp` (verify token + `X-Hub-Signature-256`). Server-rendered:
-`GET|POST /u/{token}` ("stop messaging me").
+`GET|POST /u/{token}` ("stop messaging me"), `GET|POST /verify`, `POST /verify/enquiry`, `GET /verify/{token}`.
 
 ## Design decisions worth knowing
 
@@ -234,7 +287,23 @@ Provider callbacks: `GET|POST /api/webhooks/whatsapp` (verify token + `X-Hub-Sig
 - **Survey answers update the profile** (employment and further-study status) and count as confirming the record.
 - **WhatsApp first, then SMS.** Reverse the order in `channel_priority` if SMS is cheaper or more reliable.
 
+## To confirm for Phase 3
+
+- **No opt-out from employer verification.** Graduation is a Registrar fact, so any employer can confirm it from a name
+  (without ever seeing more than programme and year). Alumni can choose *not* to hand out links, but cannot stop a
+  lookup. Confirm this with the data-protection review; adding an opt-out is small.
+- **Employers are not identified beyond what they type.** There is no sign-in, email confirmation or CAPTCHA, only rate
+  limits and the log. If misuse appears, ICT can add a CAPTCHA to the page or issue API keys to partner institutions.
+- **Verification log retention (730 days)** and where it lives (same database unless `VERIFICATION_DB_CONNECTION` is set).
+- **Dashboard small-group threshold (5)** and the **profile-status data source**, which is broader but less rigorous than
+  the surveys.
+- **Outcome definitions:** "in work" = employed + self-employed; "further study" = studying now or planning to;
+  "started a business" = the survey's yes/no question.
+
 ## Open items
+
+- **FR-5 Engagement (event postings, mentorship matching, job/internship postings) is in the spec's requirements but in
+  none of its four phases.** It needs a decision on when and with whom to build it.
 
 - Spreadsheet import is CSV only; add `.xlsx` if the Registrar's files cannot easily be saved as CSV UTF-8.
 - Production hosting, domain, TLS and backups (spec section 10) are still to be confirmed with ICT.

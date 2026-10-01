@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'survey_invitation_id', 'tracer_survey_version_id', 'alumni_profile_id', 'submission_id', 'answers',
-    'employment_status', 'further_study_status', 'ta_interest', 'submitted_at',
+    'employment_status', 'further_study_status', 'ta_interest', 'started_business', 'submitted_at',
 ])]
 class SurveyResponse extends Model
 {
@@ -17,6 +17,7 @@ class SurveyResponse extends Model
         return [
             'answers' => 'array',
             'ta_interest' => 'boolean',
+            'started_business' => 'boolean',
             'submitted_at' => 'datetime',
         ];
     }

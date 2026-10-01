@@ -20,7 +20,7 @@
         <div class="card"><div class="n">{{ number_format($fresh) }}</div><div class="l">Updated by alumni in last 12 months</div></div>
         <div class="card">
             <div class="n">{{ $surveysSent > 0 ? round($surveysDone / $surveysSent * 100).'%' : '—' }}</div>
-            <div class="l">Tracer survey response rate</div>
+            <div class="l">Tracer surveys answered so far</div>
             <a class="small" href="{{ route('admin.surveys') }}">{{ number_format($surveysDone) }} of {{ number_format($surveysSent) }} →</a>
         </div>
         <div class="card">
