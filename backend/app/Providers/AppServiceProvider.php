@@ -2,6 +2,11 @@
 
 namespace App\Providers;
 
+use App\Services\Erp\Contracts\GraduateSource;
+use App\Services\Erp\DatabaseGraduateSource;
+use App\Services\Erp\GraduateMapper;
+use App\Services\Erp\NullGraduateSource;
+use App\Services\Erp\RestGraduateSource;
 use App\Services\Messaging\CloudWhatsAppGateway;
 use App\Services\Messaging\Contracts\SmsGateway;
 use App\Services\Messaging\Contracts\WhatsAppGateway;
@@ -33,6 +38,16 @@ class AppServiceProvider extends ServiceProvider
             'log' => new LogWhatsAppGateway,
             'cloud' => new CloudWhatsAppGateway,
             default => throw new InvalidArgumentException("Unknown WHATSAPP_DRIVER '{$driver}' (use log or cloud)."),
+        });
+
+        // SorotiUniERP (spec section 7.1): one interface, so going live is a setting, not a code change.
+        $this->app->bind(GraduateMapper::class, fn () => GraduateMapper::fromConfig());
+
+        $this->app->bind(GraduateSource::class, fn ($app) => match ($driver = config('sunates.erp.driver')) {
+            'none' => new NullGraduateSource,
+            'rest' => new RestGraduateSource,
+            'database' => new DatabaseGraduateSource($app->make(GraduateMapper::class)),
+            default => throw new InvalidArgumentException("Unknown ERP_DRIVER '{$driver}' (use none, rest or database)."),
         });
     }
 

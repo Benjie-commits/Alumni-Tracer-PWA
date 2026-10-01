@@ -129,6 +129,8 @@ class AlumniDetail extends Component
             // Where this person stands with each survey (status only: their answers are in the survey screens).
             'invitations' => $this->profile->surveyInvitations()->with('cycle')->orderBy('due_at')->get(),
             'messagingStopped' => $this->profile->hasOptedOut(NotificationChannel::Sms) && $this->profile->hasOptedOut(NotificationChannel::Whatsapp),
+            // Who looked for this person by hand, and what they found (managers only: it is about a named person).
+            'checks' => $this->canEdit ? $this->profile->followUpChecks()->with('checker:id,name')->latest('id')->limit(5)->get() : collect(),
         ]);
     }
 

@@ -29,6 +29,25 @@
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <!-- The SorotiUniERP hook is pinned to its defaults: a developer's real ERP settings in .env must never change what the tests see (or reach a real ERP). -->
+        <env name="ERP_DRIVER" value="none"/>
+        <env name="ERP_FIELD_MAP" value="[]"/>
+        <env name="ERP_SYNC_AT" value="02:30"/>
+        <env name="ERP_MAX_RECORDS" value="100000"/>
+        <env name="ERP_REST_BASE_URL" value=""/>
+        <env name="ERP_REST_PATH" value="/api/graduates"/>
+        <env name="ERP_REST_AUTH" value="bearer"/>
+        <env name="ERP_REST_TOKEN" value=""/>
+        <env name="ERP_REST_TOKEN_HEADER" value="X-Api-Key"/>
+        <env name="ERP_REST_DATA_KEY" value="data"/>
+        <env name="ERP_REST_SINCE_PARAM" value="updated_since"/>
+        <env name="ERP_REST_PAGE_PARAM" value="page"/>
+        <env name="ERP_REST_SIZE_PARAM" value="per_page"/>
+        <env name="ERP_REST_PAGE_SIZE" value="200"/>
+        <env name="ERP_REST_TIMEOUT" value="30"/>
+        <env name="ERP_DB_CONNECTION" value=""/>
+        <env name="ERP_DB_TABLE" value="sunates_graduates"/>
+        <env name="FOLLOWUP_RECHECK_AFTER_DAYS" value="180"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

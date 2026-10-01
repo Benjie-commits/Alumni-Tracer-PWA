@@ -42,6 +42,7 @@ class AlumniProfileResource extends JsonResource
             'whatsapp_number' => $this->whatsapp_number,
             'country' => $this->country,
             'city' => $this->city,
+            'linkedin_url' => $this->linkedin_url,
             'employment_status' => $this->employment_status?->value,
             'further_study_status' => $this->further_study_status?->value,
             'further_study_institution' => $this->further_study_institution,

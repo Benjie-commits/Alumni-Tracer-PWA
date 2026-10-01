@@ -27,21 +27,34 @@ class AlumniImportService
     /** @var array<string, int> */
     private array $seenStudentNumbers = [];
 
+    private RecordSource $source = RecordSource::RegistrarImport;
+
     public function __construct(private readonly CsvReader $reader) {}
 
+    public function importFile(string $path, bool $dryRun = false): ImportReport
+    {
+        return $this->importRows($this->reader->read($path), $dryRun);
+    }
+
     /**
+     * The same upsert rules for any feed of rows keyed by canonical column name: a spreadsheet, or the
+     * SorotiUniERP hook (FR-9), so a record means the same thing whichever way it arrived.
+     *
      * A dry run does all the work inside a transaction and rolls it back, so the report is exactly
      * what a real import would produce.
+     *
+     * @param  iterable<int, array<string, string>>  $rows  row number => canonical column => value
      */
-    public function importFile(string $path, bool $dryRun = false): ImportReport
+    public function importRows(iterable $rows, bool $dryRun = false, RecordSource $source = RecordSource::RegistrarImport): ImportReport
     {
         $report = new ImportReport($dryRun);
         $this->seenStudentNumbers = [];
+        $this->source = $source;
 
         DB::beginTransaction();
 
         try {
-            foreach ($this->reader->read($path) as $rowNumber => $row) {
+            foreach ($rows as $rowNumber => $row) {
                 $report->rows++;
 
                 try {
@@ -121,7 +134,7 @@ class AlumniImportService
                 'student_number' => $studentNumber,
                 'email' => $email ?: null,
                 'phone' => $phone ?: null,
-                'record_source' => RecordSource::RegistrarImport,
+                'record_source' => $this->source,
                 'verification_status' => VerificationStatus::Unclaimed,
             ]);
             $report->created++;

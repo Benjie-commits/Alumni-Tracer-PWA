@@ -161,7 +161,7 @@ tr:hover td { background: color-mix(in srgb, var(--brand) 5%, transparent); }
               display: none; }   /* display:none, not opacity:0: an invisible tooltip would still widen the page */
 .seg:hover::after, .seg:focus-visible::after { display: block; }
 
-.viz table td.num, .viz table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table td.num, table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .viz table .muted-row td { color: var(--muted); font-style: italic; }
 .key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: baseline; }
 

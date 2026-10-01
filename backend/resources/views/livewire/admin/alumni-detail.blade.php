@@ -170,6 +170,28 @@
 
     @unless ($ro)
         <div class="panel">
+            <h2>Manual follow-up</h2>
+            <p style="margin-top:0">
+                LinkedIn address:
+                @if ($profile->linkedin_url)
+                    <a href="{{ $profile->linkedin_url }}" target="_blank" rel="noopener noreferrer">{{ $profile->linkedin_url }}</a>
+                    <span class="muted small">(given by the alumnus, so staff can find them if they cannot be reached)</span>
+                @else
+                    <span class="muted">none given</span>
+                @endif
+            </p>
+            @forelse ($checks as $check)
+                <p class="small" style="margin:4px 0" wire:key="chk{{ $check->id }}">
+                    {{ $check->created_at->format('j M Y') }} · {{ $check->checker?->name ?? 'a staff member' }}: <strong>{{ $check->outcome->label() }}</strong>
+                    @if ($check->note) · “{{ $check->note }}” @endif
+                </p>
+            @empty
+                <p class="muted small" style="margin:4px 0">Nobody has looked for this person by hand.</p>
+            @endforelse
+            <p class="muted small" style="margin-bottom:0">Manual look-ups are done from the <a href="{{ route('admin.follow-up') }}">Follow-up list</a>.</p>
+        </div>
+
+        <div class="panel">
             <h2>Messages</h2>
             <p style="margin-top:0">
                 SMS and WhatsApp:

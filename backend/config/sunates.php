@@ -67,6 +67,96 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | SorotiUniERP hook (FR-9, spec section 7.1)
+    |--------------------------------------------------------------------------
+    | "none" is standalone mode: alumni come from Registrar spreadsheets and nothing here runs.
+    | Once SorotiUniERP is live, point this at it and graduating students become alumni records on
+    | their own, through the same rules as a spreadsheet import. Two ways to read the ERP, as the
+    | spec allows: its REST API, or a read-only view in its database.
+    */
+    'erp' => [
+        'driver' => env('ERP_DRIVER', 'none'), // none | rest | database
+
+        // When the daily sync runs (Uganda time).
+        'sync_at' => env('ERP_SYNC_AT', '02:30'),
+
+        // Each sync asks only for records changed since the last one, minus this overlap, so clock or
+        // time-zone differences between the two systems cannot drop a change. Re-reading is harmless.
+        'overlap_hours' => 24,
+
+        // Refuse a feed bigger than this: it is almost certainly a mis-set filter or a paging fault.
+        'max_records' => (int) env('ERP_MAX_RECORDS', 100000),
+
+        // A run still "running" after this long is presumed dead (worker stopped) and no longer blocks a new one.
+        'stale_run_minutes' => 30,
+
+        // Values of the ERP's status field that mean "has graduated". Only used if a status field is mapped
+        // below; otherwise every record the ERP exposes is taken to be a graduate, so expose only graduates.
+        'graduated_values' => ['graduated', 'alumnus', 'alumna', 'alumni'],
+
+        // Our column => the ERP's field (REST: a key, dot notation allowed for nested data; database: a column).
+        // null = the ERP does not provide it. Override any of these with ERP_FIELD_MAP, a JSON object, e.g.
+        // ERP_FIELD_MAP='{"student_number":"regNo","last_name":"surname","graduation_date":"conferredOn"}'
+        'fields' => array_replace([
+            'student_number' => 'student_number',
+            'first_name' => 'first_name',
+            'last_name' => 'last_name',
+            'other_names' => 'other_names',
+            'gender' => 'gender',
+            'date_of_birth' => 'date_of_birth',
+            'school' => 'school',
+            'department' => 'department',
+            'programme' => 'programme',
+            'graduation_year' => 'graduation_year',
+            'graduation_date' => 'graduation_date',
+            'class_of_award' => 'class_of_award',
+            'email' => 'email',
+            'phone' => 'phone',
+            'status' => null,
+            // Without a "last changed" field every sync re-reads the whole feed: fine, just slower.
+            'updated_at' => null,
+        ], (array) json_decode((string) env('ERP_FIELD_MAP', '[]'), true)),
+
+        'rest' => [
+            'base_url' => env('ERP_REST_BASE_URL'),
+            'path' => env('ERP_REST_PATH', '/api/graduates'),
+            'auth' => env('ERP_REST_AUTH', 'bearer'), // bearer | header | none
+            'token' => env('ERP_REST_TOKEN'),
+            'token_header' => env('ERP_REST_TOKEN_HEADER', 'X-Api-Key'),
+            // Where the list sits in the JSON answer; an empty string means the answer is the list itself.
+            'data_key' => env('ERP_REST_DATA_KEY', 'data'),
+            'since_param' => env('ERP_REST_SINCE_PARAM', 'updated_since'),
+            // Paging: the ERP is asked for page 1, 2, 3 ... until it answers with an empty list.
+            'page_param' => env('ERP_REST_PAGE_PARAM', 'page'),
+            'size_param' => env('ERP_REST_SIZE_PARAM', 'per_page'),
+            'page_size' => (int) env('ERP_REST_PAGE_SIZE', 200),
+            'timeout' => (int) env('ERP_REST_TIMEOUT', 30),
+        ],
+
+        'database' => [
+            // A connection from config/database.php, ideally with a read-only database user.
+            'connection' => env('ERP_DB_CONNECTION'),
+            'table' => env('ERP_DB_TABLE', 'sunates_graduates'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Staff follow-up of non-responsive alumni (spec section 7.4 fallback)
+    |--------------------------------------------------------------------------
+    | LinkedIn offers no consented way to watch for job changes, so for alumni who never answer the
+    | nudges, staff look them up by hand. This keeps that occasional, targeted and recorded.
+    */
+    'followup' => [
+        // "Didn't respond": at least this many nudges in the last year and still no confirmation.
+        'min_nudges' => 2,
+
+        // Once staff have looked for someone, leave them alone this long before suggesting them again.
+        'recheck_after_days' => (int) env('FOLLOWUP_RECHECK_AFTER_DAYS', 180),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Credential verification (FR-6)
     |--------------------------------------------------------------------------
     */

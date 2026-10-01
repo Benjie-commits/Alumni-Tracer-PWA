@@ -22,6 +22,9 @@ Schedule::command('sunates:nudges')->weeklyOn(2, '10:00')->timezone($timezone)->
 // Poll the SMS provider for delivery receipts.
 Schedule::command('sunates:sync-delivery-status')->everyFifteenMinutes()->withoutOverlapping()->onOneServer();
 
+// SorotiUniERP (FR-9): turn newly graduated students into alumni records. A no-op while the integration is off.
+Schedule::command('sunates:sync-erp --scheduled')->dailyAt(config('sunates.erp.sync_at'))->timezone($timezone)->withoutOverlapping()->onOneServer();
+
 // Retention: old lookup logs, resolved enquiries and dead credential links.
 Schedule::command('sunates:prune-verification-data')->monthlyOn(1, '03:00')->timezone($timezone)->onOneServer();
 

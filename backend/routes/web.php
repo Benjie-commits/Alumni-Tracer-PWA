@@ -10,6 +10,8 @@ use App\Http\Controllers\VerificationPortalController;
 use App\Livewire\Admin\AlumniDetail;
 use App\Livewire\Admin\AlumniDirectory;
 use App\Livewire\Admin\Dashboard;
+use App\Livewire\Admin\ErpSync;
+use App\Livewire\Admin\FollowUp;
 use App\Livewire\Admin\ImportAlumni;
 use App\Livewire\Admin\Notifications;
 use App\Livewire\Admin\Outcomes;
@@ -69,6 +71,12 @@ Route::prefix('admin')->name('admin.')->group(function () use ($staff, $managers
             Route::get('surveys/{cycle}/export', SurveyExportController::class)->name('surveys.export');
             Route::get('notifications', Notifications::class)->name('notifications');
             Route::get('verification-enquiries', VerificationEnquiries::class)->name('verification-enquiries');
+
+            // SorotiUniERP hook (FR-9): the Registrar can read it; only ICT's actions are allowed (re-checked in the component).
+            Route::get('erp', ErpSync::class)->name('erp');
+
+            // Manual look-ups of non-responsive alumni (spec 7.4 fallback). Personal details, so managers only.
+            Route::get('follow-up', FollowUp::class)->name('follow-up');
         });
 
         Route::middleware('role:'.RoleSlug::IctAdmin->value)->get('staff', StaffUsers::class)->name('staff');

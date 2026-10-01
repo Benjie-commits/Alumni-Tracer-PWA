@@ -12,7 +12,7 @@ const saved = ref(false)
 const { busy, message, errors, submit } = useForm()
 
 const EDITABLE = [
-  'email', 'phone', 'whatsapp_number', 'country', 'city',
+  'email', 'phone', 'whatsapp_number', 'country', 'city', 'linkedin_url',
   'employment_status', 'further_study_status', 'further_study_institution', 'further_study_programme',
 ]
 const form = reactive(Object.fromEntries(EDITABLE.map((key) => [key, ''])))
@@ -133,6 +133,14 @@ async function save() {
         <Field label="Town / city" :error="errors.city"><input v-model.trim="form.city" autocomplete="address-level2" /></Field>
         <Field label="Country" :error="errors.country"><input v-model.trim="form.country" autocomplete="country-name" /></Field>
       </div>
+
+      <Field
+        label="LinkedIn profile (optional)"
+        :error="errors.linkedin_url"
+        hint="Only university staff can see this. If we can't reach you, they may look at your profile by hand to check your details. We never connect to your LinkedIn account."
+      >
+        <input v-model.trim="form.linkedin_url" type="url" inputmode="url" autocomplete="url" placeholder="linkedin.com/in/your-name" />
+      </Field>
 
       <Field label="What are you doing now?" :error="errors.employment_status">
         <select v-model="form.employment_status">

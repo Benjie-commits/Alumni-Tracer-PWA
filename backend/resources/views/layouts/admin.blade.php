@@ -32,7 +32,9 @@
                     @endif
                 </a>
                 <a href="{{ route('admin.notifications') }}" @class(['active' => request()->routeIs('admin.notifications')])>Messages</a>
+                <a href="{{ route('admin.follow-up') }}" @class(['active' => request()->routeIs('admin.follow-up')])>Follow-up list</a>
                 <a href="{{ route('admin.import') }}" @class(['active' => request()->routeIs('admin.import')])>Import from spreadsheet</a>
+                <a href="{{ route('admin.erp') }}" @class(['active' => request()->routeIs('admin.erp')])>SorotiUniERP sync</a>
             @endif
             @if ($user->hasRole(\App\Enums\RoleSlug::IctAdmin))
                 <a href="{{ route('admin.staff') }}" @class(['active' => request()->routeIs('admin.staff')])>Staff accounts</a>

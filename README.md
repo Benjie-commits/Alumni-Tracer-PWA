@@ -2,7 +2,8 @@
 
 Implementation of `SUN-ATES_Engineering_Specification.pdf` (v1.0). This repository currently contains
 **Phase 1** (alumni directory, self-service registration, staff console), **Phase 2** (tracer-study surveys and
-SMS/WhatsApp nudges) and **Phase 3** (outcome dashboards and employer credential verification).
+SMS/WhatsApp nudges), **Phase 3** (outcome dashboards and employer credential verification) and **Phase 4** (the
+SorotiUniERP hook, and the staff follow-up route that stands in for LinkedIn monitoring).
 
 | Folder | What it is | Stack (per spec section 8) |
 |---|---|---|
@@ -17,11 +18,12 @@ SMS/WhatsApp nudges) and **Phase 3** (outcome dashboards and employer credential
 | FR-1 Directory and search, filter, export | Done | Console: *Alumni directory* (search, School → Department → Programme, year, status, teaching-assistant candidates, CSV export) |
 | FR-2 Alumni self-service and identity check | Done | PWA registration matches student number + surname + graduation year against Registrar records; profile and work history editing |
 | FR-3 Automated tracer surveys + TA flag | Done | Surveys at 6 months, 1 year and 3 years, sent by WhatsApp/SMS link; answered in the PWA; strong, available graduates flagged for teaching-assistant consideration |
-| FR-7 Data-freshness nudges | Done (consent-based) | Weekly WhatsApp/SMS nudge to alumni who have not confirmed their record for a year. LinkedIn is **not** consulted: spec section 7.4 replaces it with an opt-in flow (Phase 4) |
+| FR-7 Data-freshness nudges | Done (consent-based) | Weekly WhatsApp/SMS nudge to alumni who have not confirmed their record for a year. LinkedIn is **not** consulted (see *LinkedIn* below for why) |
 | FR-4 Outcome dashboards | Done | Console: *Graduate outcomes*: employment, further study and entrepreneurship by School / Department / Programme / year, with export. Small groups are withheld |
 | FR-6 Credential verification | Done | `/verify` web page and `POST /api/v1/verification/lookup` for employers and partners; alumni can give an employer a private verification link; "ask the Registrar" escalation |
 | FR-8 Admin console, bulk import | Done | Console: CSV import with preview, verification queue, staff accounts, surveys, message log, employer enquiries |
-| FR-9 SorotiUniERP hook, LinkedIn opt-in | Not started | Phase 4 (waits on the ERP being active) |
+| FR-9 SorotiUniERP hook | Built, **not yet run against the real ERP** | `ERP_DRIVER` = `none` (standalone, the default), `rest` or `database`. A daily sync turns graduating students into alumni records by the same rules as a spreadsheet import. Console: *SorotiUniERP sync* (test connection, preview, sync now, history) |
+| LinkedIn cross-check (spec 7.4) | **Partly built; needs sign-off** | LinkedIn's official sign-in cannot show job changes, so a consent-based "periodic check" is not buildable as written. Built instead: an optional LinkedIn address the alumnus can give, and a staff *Follow-up list* for the manual search the spec allows |
 | FR-5 Engagement (events, mentorship, jobs) | **Not scheduled** | Listed as a requirement but the spec's phase plan (section 11) does not assign it to any phase |
 
 ## Local setup
@@ -65,7 +67,7 @@ MySQL on port **3307** so it can sit beside another MySQL). Pass `-Tools <folder
 ### Tests
 
 ```powershell
-cd backend ; php artisan test     # 435 tests; runs against MySQL database `sunates_testing`
+cd backend ; php artisan test     # 588 tests; runs against MySQL database `sunates_testing`
 cd pwa     ; npm test             # 46 tests (Node's built-in runner)
 cd pwa     ; npm run build        # production bundle in pwa\dist
 ```
@@ -233,6 +235,97 @@ Employers and partner institutions can check that someone graduated, without con
 - **Production routing:** `/verify` and `/u` are served by Laravel, not the PWA. Route them (with `/api`, `/admin` and
   `/livewire`) to PHP-FPM in Nginx, and everything else to the PWA's `index.html`.
 
+## SorotiUniERP hook (FR-9, Phase 4)
+
+SUN-ATES runs standalone at launch (spec section 2.4): `ERP_DRIVER=none`, alumni come from Registrar spreadsheets, and
+nothing below runs. Once SorotiUniERP is in active use, ICT switches the hook on and a graduating student's ERP
+record becomes an alumni record without anyone typing it again. The ERP is read behind one interface
+(`GraduateSource`), so going live is a setting, not a code change, and nothing in the profile or survey code knows
+the ERP exists. **This has been tested against a stand-in ERP (a paged REST API with its own field names, and a
+database view), not against SorotiUniERP itself, whose interface was not available.**
+
+**Two ways to read it** (spec section 7.1), chosen with `ERP_DRIVER` in `backend/.env`:
+
+| `ERP_DRIVER` | Reads from | Settings |
+|---|---|---|
+| `none` | nothing (standalone) | none |
+| `rest` | the ERP's REST API | `ERP_REST_BASE_URL` (must be `https://`), `ERP_REST_PATH`, `ERP_REST_TOKEN`, `ERP_REST_AUTH` (`bearer`, `header` or `none`), `ERP_REST_TOKEN_HEADER`, `ERP_REST_DATA_KEY`, `ERP_REST_SINCE_PARAM`, `ERP_REST_PAGE_PARAM`, `ERP_REST_SIZE_PARAM`, `ERP_REST_PAGE_SIZE` |
+| `database` | a read-only view in the ERP database | `ERP_DB_CONNECTION` (a connection you add to `config/database.php`, ideally with a read-only user), `ERP_DB_TABLE` |
+
+The ERP's field names are mapped with `ERP_FIELD_MAP`, a JSON object of *our column → the ERP's field*, for example
+`ERP_FIELD_MAP='{"student_number":"regNo","last_name":"familyName","programme":"course.name","status":"state","updated_at":"modifiedAt"}'`
+(dot notation reaches nested JSON; `null` means the ERP does not have it). Our columns are `student_number`, `first_name`,
+`last_name`, `other_names`, `gender`, `date_of_birth`, `school`, `department`, `programme`, `graduation_year`,
+`graduation_date`, `class_of_award`, `email`, `phone`, plus `status` (see below) and `updated_at`.
+
+**What the ERP team needs to provide (REST).** One authenticated `GET` that pages and, ideally, filters by change date:
+
+```
+GET {ERP_REST_BASE_URL}{ERP_REST_PATH}?page=1&per_page=200&updated_since=2026-09-30T08:00:00+03:00
+Authorization: Bearer <token>
+
+200 {"data": [ {"student_number": "SU/2026/001", "first_name": "...", "last_name": "...", "programme": "...", ... } ]}
+```
+
+It is read page by page until an empty page, so an ERP that caps its page size is still read in full. If the ERP also
+holds students who have not graduated, map `status`: only records whose status is one of `graduated`, `alumnus`, `alumna`,
+`alumni` (any case; `graduated_values` in `config/sunates.php`) are taken. With no status field, every record the ERP
+exposes is assumed to be a graduate, so expose graduates only.
+
+**The rules are the spreadsheet import's** (`AlumniImportService`), so a record means the same whichever way it arrived:
+matched on student number; names, programme, graduation details and class of award are refreshed from the ERP; an
+alumnus's own email and phone are never overwritten; a blank ERP field never erases what we hold; nothing is deleted;
+a record the Registrar deleted is not brought back; new schools, departments and programmes are created. New records are
+*unclaimed* (the graduate claims theirs when they register), and the sync never changes the alumnus's "last confirmed"
+date, so it neither counts as a confirmation nor starts any messaging.
+
+**Safety.**
+- The whole feed is read **before** anything is saved: if the ERP fails half-way, nothing is saved and the run says why.
+- A record that cannot be used (no surname, bad year) is turned away **by student number** and the rest still go in.
+  While anything is being turned away, the next sync re-reads from the same point instead of skipping past it.
+- Each sync asks only for records changed since the last good one, less a 24-hour overlap (so clock or time-zone
+  differences cannot drop a change); "Re-read everything" ignores that. Without an `updated_at` mapping every sync
+  reads everything, which is fine, just slower.
+- Only one sync runs at a time; a run left "running" by a stopped worker is written off after 30 minutes.
+- A feed larger than `ERP_MAX_RECORDS` (default 100,000), an ERP that ignores paging, or a credential that would travel
+  over plain `http://` to another machine are all refused.
+- Credentials are never shown on the console page or in error messages.
+
+**Running it.** `php artisan sunates:sync-erp` (`--dry-run` to preview, `--full` to re-read everything) runs daily at
+`ERP_SYNC_AT` (default 02:30 Uganda time) through the scheduler, and does nothing while the integration is off. Console
+page **SorotiUniERP sync** (Registrar and ICT can read it; only ICT can run anything): shows whether the hook is on and where
+it reads from, *Test the connection* (checks the first record has the fields we need, without saving anything),
+*Preview*, *Sync now*, *Re-read everything*, and the history of every run with its counts and problems. Syncs started
+from the console run on the queue worker.
+
+## LinkedIn (spec section 7.4): what is and is not built
+
+The spec's design is an opt-in where an alumnus connects their LinkedIn account and we periodically check their own
+profile for changes. **That cannot work with LinkedIn's official API**, going by LinkedIn's own documentation (Microsoft
+Learn, *Sign In with LinkedIn using OpenID Connect* and *3-legged OAuth*, read 1 Oct 2026):
+- the official sign-in returns only the member's name, photo, locale and email. It returns no employer, job title or
+  headline, so there is nothing to compare and a job change would never show up;
+- access tokens last 60 days and programmatic refresh is offered to "a limited set of partners", so an ordinary app
+  could only re-check someone who signs in to LinkedIn through us again every two months.
+
+Building the connection anyway would collect LinkedIn credentials and data and gain nothing from them, so it was **not
+built**. The spec asks for this feature to be flagged to the Registrar and the Directorate of ICT before development,
+and this is that flag. What is built is the spec's own fallback, kept careful:
+- **An optional LinkedIn address** in the alumnus's profile (PWA, "LinkedIn profile (optional)"). It is checked to be
+  a real `linkedin.com/in/...` address and stored in one fixed form; only Registrar and ICT staff ever see it; nothing
+  ever contacts LinkedIn about them. The wording tells them exactly what it is for.
+- **A staff *Follow-up list*** (Registrar and ICT) of graduates who are *genuinely* non-responsive, for the occasional
+  manual search. Someone is listed only if the Registrar's records confirm they graduated, they have not confirmed their
+  own record for over a year, they have **not** asked to stop all messages, and nobody has looked for them in the last
+  180 days; and either we messaged them at least twice in the last year and heard nothing (*Did not respond*), or we hold no
+  phone number for them (*No phone number*). Staff search by hand on LinkedIn's own website (a ready-made search link is
+  provided, or the address the graduate gave), record what they found (found and updated / already right / not found /
+  not sure), and the person drops off the list. A look is never counted as the alumnus confirming their record, so we keep
+  asking them. The record page shows who looked and what they found.
+
+If LinkedIn later grants this project access to richer, consented profile data, a connection can be added as a new
+source without touching the rest; until then the above is what the spec's own fallback calls for.
+
 ## Access (spec section 9)
 
 | | Alumni PWA / API | Directory (names, programme, outcomes) | Contact details, editing | Verification queue, import, **individual survey answers, message log, employer enquiries** | Outcome dashboards, surveys overview | Staff accounts, test messages |
@@ -243,6 +336,9 @@ Employers and partner institutions can check that someone graduated, without con
 | QA / Dean viewer | | yes (read-only) | **no** | **no** | yes | |
 | Employer / partner (no account) | | | | | | `/verify` only |
 
+The *SorotiUniERP sync* page and the *Follow-up list* are Registrar/ICT pages (QA/Dean viewers cannot open either);
+only ICT can start an ERP sync.
+
 Alumni use the API with bearer tokens (30 days, one per device). Staff use session sign-in to the console; staff cannot
 use the alumni API and alumni cannot enter the console. QA/Dean viewers deliberately receive no personal contact details
 (not in pages, search, exports or the browser payload). Confirm this with the Registrar and QA Directorate.
@@ -251,7 +347,7 @@ use the alumni API and alumni cannot enter the console. QA/Dean viewers delibera
 
 Public: `GET reference/programmes`, `GET reference/options`, `POST auth/register` (5/min/IP), `POST auth/login`
 (5/min per email+IP), `GET surveys/{token}` and `POST surveys/{token}/responses` (30/min/IP; the token is the credential).
-Alumni (bearer token): `POST auth/logout`, `GET me`, `GET|PUT me/profile`, `GET|POST me/employment-records`,
+Alumni (bearer token): `POST auth/logout`, `GET me`, `GET|PUT me/profile` (including the optional `linkedin_url`), `GET|POST me/employment-records`,
 `PUT|DELETE me/employment-records/{id}`, `GET me/surveys`, `GET|PUT me/notification-preferences`.
 Employer verification (no sign-in, rate-limited): `POST verification/lookup`. Alumni also: `GET|POST me/credential-links`, `DELETE me/credential-links/{id}`.
 Provider callbacks: `GET|POST /api/webhooks/whatsapp` (verify token + `X-Hub-Signature-256`). Server-rendered:
@@ -300,10 +396,28 @@ Provider callbacks: `GET|POST /api/webhooks/whatsapp` (verify token + `X-Hub-Sig
 - **Outcome definitions:** "in work" = employed + self-employed; "further study" = studying now or planning to;
   "started a business" = the survey's yes/no question.
 
+## To confirm for Phase 4
+
+- **The ERP interface.** Which mode (REST or database view), the exact endpoint, how to authenticate, what the ERP calls
+  each field, and how a graduate is told apart from a current student. The hook is built to a plain contract (above) and a
+  field map; once SorotiUniERP is live, run *Test the connection* and *Preview* before the first real sync.
+- **ERP wins for Registrar-owned fields.** Once the ERP is connected, names, programme, graduation details and class of
+  award are refreshed from it whenever it changes, overwriting spreadsheet imports and manual console edits to those
+  fields. Alumni-maintained details are never overwritten. Confirm that the ERP is to be the authority.
+- **New ERP graduates are not contacted.** They arrive as unclaimed records and only receive surveys and nudges if
+  `SURVEY_INCLUDE_UNCLAIMED` / `NUDGES_INCLUDE_UNCLAIMED` are switched on after the data-protection review.
+- **LinkedIn.** Sign off the departure from spec section 7.4 explained above, the follow-up thresholds (two unanswered
+  nudges; 180 days before someone is suggested again; anyone who stopped all messages is never suggested) and whether
+  staff searching for named graduates by hand is acceptable under the data-protection review. The wording next to the
+  LinkedIn address field in the app is a draft for that review.
+
 ## Open items
 
 - **FR-5 Engagement (event postings, mentorship matching, job/internship postings) is in the spec's requirements but in
   none of its four phases.** It needs a decision on when and with whom to build it.
+- **The SorotiUniERP hook has not been run against SorotiUniERP**, and the MTN SMS and WhatsApp adapters have not been
+  run against live accounts (MTN's SMS API needs OAuth client credentials from developers.mtn.com; MTN MoMo payment
+  sandbox keys are a different product and cannot send SMS).
 
 - Spreadsheet import is CSV only; add `.xlsx` if the Registrar's files cannot easily be saved as CSV UTF-8.
 - Production hosting, domain, TLS and backups (spec section 10) are still to be confirmed with ICT.

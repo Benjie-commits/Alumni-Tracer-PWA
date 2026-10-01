@@ -20,7 +20,7 @@ use Illuminate\Support\Str;
 #[Fillable([
     'user_id', 'student_number', 'declared_student_number', 'programme_id', 'graduation_year', 'graduation_date', 'class_of_award',
     'first_name', 'last_name', 'other_names', 'gender', 'date_of_birth',
-    'email', 'phone', 'whatsapp_number', 'country', 'city',
+    'email', 'phone', 'whatsapp_number', 'country', 'city', 'linkedin_url',
     'employment_status', 'further_study_status', 'further_study_institution', 'further_study_programme',
     'record_source', 'verification_status', 'claimed_at', 'verified_at', 'verified_by',
     'consented_at', 'profile_updated_at',
@@ -41,7 +41,7 @@ class AlumniProfile extends Model
 
     /** Fields an alumnus may change themselves; academic history stays Registrar-owned. */
     public const SELF_SERVICE_FIELDS = [
-        'email', 'phone', 'whatsapp_number', 'country', 'city',
+        'email', 'phone', 'whatsapp_number', 'country', 'city', 'linkedin_url',
         'employment_status', 'further_study_status', 'further_study_institution', 'further_study_programme',
     ];
 
@@ -103,6 +103,11 @@ class AlumniProfile extends Model
     public function credentialLinks(): HasMany
     {
         return $this->hasMany(CredentialLink::class);
+    }
+
+    public function followUpChecks(): HasMany
+    {
+        return $this->hasMany(FollowUpCheck::class);
     }
 
     public function hasOptedOut(NotificationChannel $channel): bool
