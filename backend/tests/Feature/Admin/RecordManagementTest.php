@@ -33,6 +33,55 @@ class RecordManagementTest extends AdminTestCase
         $this->assertNull($profile->profile_updated_at, 'staff edits must not look like alumnus confirmation');
     }
 
+    // ---- regressions: the email of a registered alumnus is also their sign-in email ----------------
+
+    public function test_a_staff_email_change_also_changes_the_alumnus_sign_in_email(): void
+    {
+        $alumnus = User::factory()->alumnus()->create(['email' => 'old@example.com']);
+        $profile = $this->profile(['user_id' => $alumnus->id, 'email' => 'old@example.com']);
+
+        Livewire::actingAs($this->registrar())->test(AlumniDetail::class, ['profile' => $profile])
+            ->set('form.email', 'new@example.com')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertSame('new@example.com', $profile->fresh()->email);
+        $this->assertSame('new@example.com', $alumnus->fresh()->email);
+    }
+
+    public function test_staff_cannot_give_an_alumnus_an_email_another_account_uses(): void
+    {
+        User::factory()->create(['email' => 'taken@example.com']);
+        $alumnus = User::factory()->alumnus()->create(['email' => 'mine@example.com']);
+        $profile = $this->profile(['user_id' => $alumnus->id, 'email' => 'mine@example.com']);
+
+        Livewire::actingAs($this->registrar())->test(AlumniDetail::class, ['profile' => $profile])
+            ->set('form.email', 'taken@example.com')
+            ->call('save')
+            ->assertHasErrors(['form.email' => 'unique']);
+
+        $this->assertSame('mine@example.com', $alumnus->fresh()->email);
+    }
+
+    public function test_staff_cannot_clear_a_registered_alumnus_email_but_can_for_an_unregistered_record(): void
+    {
+        $alumnus = User::factory()->alumnus()->create();
+        $registered = $this->profile(['user_id' => $alumnus->id, 'email' => $alumnus->email]);
+        $unregistered = $this->profile(['email' => 'imported@example.com']);
+
+        Livewire::actingAs($this->registrar())->test(AlumniDetail::class, ['profile' => $registered])
+            ->set('form.email', '')
+            ->call('save')
+            ->assertHasErrors(['form.email' => 'required']);
+
+        Livewire::actingAs($this->registrar())->test(AlumniDetail::class, ['profile' => $unregistered])
+            ->set('form.email', '')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertNull($unregistered->fresh()->email);
+    }
+
     public function test_edits_are_validated_including_student_number_uniqueness(): void
     {
         $this->profile(['student_number' => 'SU/2021/001']);

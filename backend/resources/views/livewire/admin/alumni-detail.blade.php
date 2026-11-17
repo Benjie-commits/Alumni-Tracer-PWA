@@ -22,7 +22,7 @@
         <div class="alert warn">You have read-only access. Contact details and editing are limited to Registrar and ICT staff.</div>
     @endif
     @if ($profile->declared_student_number)
-        <div class="alert warn">Self-declared student number: <strong>{{ $profile->declared_student_number }}</strong> (not matched to a Registrar record).</div>
+        <div class="alert warn">Self-declared student number: <strong>{{ $profile->declared_student_number }}</strong> (not matched to a Registrar record). Employers <strong>cannot</strong> confirm this degree until an official student number is entered below.</div>
     @endif
 
     <form wire:submit="save">
@@ -30,7 +30,7 @@
             <h2>Academic record <span class="muted small">(Registrar-owned)</span></h2>
             <div class="grid3">
                 <label class="field"><span>Student number</span>
-                    <input type="text" wire:model="form.student_number" @disabled($ro)>
+                    <input type="text" inputmode="numeric" wire:model="form.student_number" placeholder="2101600227" @disabled($ro)>
                     @error('form.student_number')<span class="error">{{ $message }}</span>@enderror</label>
                 <label class="field"><span>First name</span>
                     <input type="text" wire:model="form.first_name" @disabled($ro)>
@@ -80,7 +80,7 @@
                 @unless ($ro)
                     <label class="field"><span>Email</span>
                         <input type="email" wire:model="form.email">
-                        @error('form.email')<span class="error">{{ $message }}</span>@enderror</label>
+                        @error('form.email')<span class="error">{{ $message }}</span>@else @if ($profile->user)<span class="muted small">Also their sign-in email: changing it changes how they sign in.</span>@endif @enderror</label>
                     <label class="field"><span>Phone</span>
                         <input type="text" wire:model="form.phone">
                         @error('form.phone')<span class="error">{{ $message }}</span>@enderror</label>

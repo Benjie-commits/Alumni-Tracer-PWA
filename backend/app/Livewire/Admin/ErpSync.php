@@ -9,6 +9,7 @@ use App\Models\ErpSyncRun;
 use App\Services\Erp\ErpSourceException;
 use App\Services\Erp\ErpSyncBusy;
 use App\Services\Erp\ErpSyncService;
+use App\Support\Audit;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -83,6 +84,7 @@ class ErpSync extends Component
         }
 
         RunErpSync::dispatch($run->id);
+        Audit::record('erp.sync_started', $run, meta: ['preview' => $dryRun, 'full' => $full]);
 
         $this->started = $dryRun
             ? 'Preview started. Nothing will be saved; the result appears below in a moment.'

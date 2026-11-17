@@ -11,6 +11,7 @@ use App\Models\AlumniProfile;
 use App\Models\NotificationLog;
 use App\Models\User;
 use App\Services\Messaging\NotificationService;
+use App\Services\Messaging\TransientGatewayException;
 use App\Services\Nudges\ProfileNudger;
 use Illuminate\Support\Facades\Queue;
 
@@ -264,8 +265,10 @@ class NudgeTest extends Phase2TestCase
         $profile = $this->stale();
         $this->at('2026-10-05 23:00');
 
-        (new SendProfileNudge($profile->id))->handle(app(NotificationService::class));
+        $job = (new SendProfileNudge($profile->id))->withFakeQueueInteractions();
+        $job->handle(app(NotificationService::class), $this->nudger());
 
+        $job->assertReleased();
         $this->assertSame([], $this->whatsapp->sent);
         $this->assertSame(0, NotificationLog::count());
     }
@@ -275,10 +278,65 @@ class NudgeTest extends Phase2TestCase
         $profile = $this->stale();
         $service = app(NotificationService::class);
 
-        (new SendProfileNudge($profile->id))->handle($service);
-        (new SendProfileNudge($profile->id))->handle($service);
+        (new SendProfileNudge($profile->id))->handle($service, $this->nudger());
+        (new SendProfileNudge($profile->id))->handle($service, $this->nudger());
 
         $this->assertCount(1, $this->whatsapp->sent);
+    }
+
+    // ---- regressions: retries and re-checks at send time --------------------------------------
+
+    public function test_a_retry_after_a_temporary_provider_failure_does_send(): void
+    {
+        // Before the fix, the failed attempt's log entry made the retry think it had already nudged.
+        $profile = $this->stale();
+        $service = app(NotificationService::class);
+
+        $this->whatsapp->failWith = new TransientGatewayException('Timed out');
+        try {
+            (new SendProfileNudge($profile->id))->handle($service, $this->nudger());
+            $this->fail('A temporary failure must be thrown so the queue retries the job.');
+        } catch (TransientGatewayException) {
+            // expected
+        }
+
+        $this->whatsapp->failWith = null;
+        (new SendProfileNudge($profile->id))->handle($service, $this->nudger());
+
+        $this->assertCount(1, $this->whatsapp->sent);
+        $this->assertSame(1, NotificationLog::query()->where('status', NotificationStatus::Sent)->count());
+    }
+
+    public function test_a_record_updated_while_the_job_waited_is_not_nudged(): void
+    {
+        $profile = $this->stale();
+        $profile->update(['profile_updated_at' => now()]);
+
+        (new SendProfileNudge($profile->id))->handle(app(NotificationService::class), $this->nudger());
+
+        $this->assertSame([], $this->whatsapp->sent);
+    }
+
+    public function test_someone_who_stopped_all_messages_while_the_job_waited_is_not_nudged(): void
+    {
+        $profile = $this->stale();
+        $profile->setOptOut(null, true);
+        $profile->save();
+
+        (new SendProfileNudge($profile->id))->handle(app(NotificationService::class), $this->nudger());
+
+        $this->assertSame([], $this->whatsapp->sent);
+        $this->assertSame(0, NotificationLog::count());
+    }
+
+    public function test_waiting_out_quiet_hours_does_not_use_up_retry_attempts(): void
+    {
+        $job = new SendProfileNudge(1);
+
+        // A deadline, not an attempt count, bounds the job; only genuine failures are counted.
+        $this->assertFalse(property_exists($job, 'tries'));
+        $this->assertTrue($job->retryUntil() > now()->addDays(2));
+        $this->assertSame(6, $job->maxExceptions);
     }
 
     public function test_the_command_reports_and_respects_dry_run(): void

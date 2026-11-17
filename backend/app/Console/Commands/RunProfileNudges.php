@@ -24,7 +24,7 @@ class RunProfileNudges extends Command
 
         $this->info($dryRun ? 'DRY RUN: nothing was sent.' : 'Nudges queued.');
         $this->line("Records due a nudge: {$result['eligible']}");
-        $this->line(($dryRun ? 'Would send today: ' : 'Queued today: ').$result['queued'].' (daily limit '.config('sunates.nudges.daily_limit').')');
+        $this->line(($dryRun ? 'Would send this run: ' : 'Queued this run: ').$result['queued'].' (limit per run '.config('sunates.nudges.daily_limit').')');
 
         return self::SUCCESS;
     }

@@ -4,6 +4,7 @@ namespace App\Livewire\Admin;
 
 use App\Livewire\Admin\Concerns\AuthorizesStaff;
 use App\Services\Import\AlumniImportService;
+use App\Support\Audit;
 use InvalidArgumentException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -61,6 +62,10 @@ class ImportAlumni extends Component
 
         try {
             $this->report = $import->importFile($this->file->getRealPath(), $dryRun)->toArray();
+
+            if (! $dryRun) {
+                Audit::record('import.committed', meta: array_intersect_key($this->report, array_flip(['rows', 'created', 'updated', 'unchanged', 'skipped'])));
+            }
         } catch (InvalidArgumentException $e) {
             $this->report = null;
             $this->addError('file', $e->getMessage());

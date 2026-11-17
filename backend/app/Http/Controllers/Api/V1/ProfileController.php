@@ -23,8 +23,9 @@ class ProfileController extends Controller
         $profile->profile_updated_at = now();
         $profile->save();
 
-        // Keep the login email in step with the contact email the alumnus chose.
-        if ($profile->wasChanged('email') && $profile->email) {
+        // Keep the login email in step with the contact email the alumnus chose (the request has already
+        // checked it is unused and, if it changed, that they gave their current password).
+        if ($profile->email && $profile->email !== $request->user()->email) {
             $request->user()->update(['email' => $profile->email]);
         }
 

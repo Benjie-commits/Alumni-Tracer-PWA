@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SurveyResponse;
 use App\Models\TracerSurveyCycle;
 use App\Services\Surveys\ReadableAnswers;
+use App\Support\Audit;
 use App\Support\Csv;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -49,6 +50,8 @@ class SurveyExportController extends Controller
                 ], array_map(fn ($key) => $answers[$key] ?? '', array_keys($columns)));
             }
         };
+
+        Audit::record('export.survey_responses', $cycle, meta: ['milestone_months' => $cycle->milestone_months]);
 
         return response()->streamDownload(
             fn () => Csv::stream($headings, $rows()),

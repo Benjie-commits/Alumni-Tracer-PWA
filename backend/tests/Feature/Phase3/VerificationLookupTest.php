@@ -79,6 +79,25 @@ class VerificationLookupTest extends Phase3TestCase
         }
     }
 
+    public function test_punctuation_in_the_stored_name_does_not_get_in_the_way(): void
+    {
+        // Regression: stored dots, commas and brackets used to stop a correct name from matching.
+        $this->graduate(['first_name' => 'Peter', 'last_name' => 'Ojok Jr.']);
+        $this->graduate(['first_name' => 'Okello,Grace', 'last_name' => 'Akello']);
+        $this->graduate(['first_name' => 'Ruth', 'other_names' => '(Nakato)', 'last_name' => 'Apio']);
+
+        foreach (['Peter Ojok Jr', 'Peter Ojok', 'Grace Okello Akello', 'Ruth Nakato Apio', 'Ruth Apio'] as $typed) {
+            $this->ask($this->lookup(['name' => $typed]))->assertJsonPath('data.result', 'verified', "'{$typed}' should match");
+        }
+    }
+
+    public function test_dropping_punctuation_does_not_glue_words_into_false_matches(): void
+    {
+        $this->graduate(['first_name' => 'Peter', 'last_name' => 'Ojok Jr.']);
+
+        $this->ask($this->lookup(['name' => 'Peter Ojokjr']))->assertJsonPath('data.result', 'not_found');
+    }
+
     public function test_only_whole_words_match(): void
     {
         $this->graduate(['first_name' => 'Aminata', 'last_name' => 'Okello']);

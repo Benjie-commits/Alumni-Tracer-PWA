@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Support\StudentNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
@@ -18,7 +19,7 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'student_number' => ['required', 'string', 'max:64'],
+            'student_number' => ['required', 'string', 'max:64', StudentNumber::rule()],
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'graduation_year' => ['required', 'integer', 'between:1950,'.((int) date('Y') + 1)],

@@ -25,6 +25,7 @@ use Illuminate\Support\Str;
     'record_source', 'verification_status', 'claimed_at', 'verified_at', 'verified_by',
     'consented_at', 'profile_updated_at',
     'sms_opt_out_at', 'whatsapp_opt_out_at', 'last_survey_completed_at', 'ta_flagged_at',
+    'mentor_opt_in_at', 'mentor_topics',
 ])]
 class AlumniProfile extends Model
 {
@@ -62,6 +63,7 @@ class AlumniProfile extends Model
             'whatsapp_opt_out_at' => 'datetime',
             'last_survey_completed_at' => 'datetime',
             'ta_flagged_at' => 'datetime',
+            'mentor_opt_in_at' => 'datetime',
         ];
     }
 
@@ -110,6 +112,23 @@ class AlumniProfile extends Model
         return $this->hasMany(FollowUpCheck::class);
     }
 
+    /** Students this alumnus mentors (FR-5). */
+    public function mentorships(): HasMany
+    {
+        return $this->hasMany(MentorshipMatch::class);
+    }
+
+    /**
+     * Alumni staff may match with a student: they said yes to mentoring, and the Registrar's records
+     * confirm who they are (a pending or rejected claim is never put in touch with a student).
+     */
+    public function scopeAvailableMentors(Builder $query): Builder
+    {
+        return $query->whereNotNull('mentor_opt_in_at')
+            ->where('verification_status', VerificationStatus::Verified)
+            ->whereNotNull('user_id');
+    }
+
     public function hasOptedOut(NotificationChannel $channel): bool
     {
         return match ($channel) {
@@ -148,9 +167,9 @@ class AlumniProfile extends Model
     }
 
     /**
-     * Graduates we can confirm to an employer (FR-6): a record the Registrar actually holds (it has a
-     * student number), whose graduation has happened. A claim someone typed in themselves, even one
-     * staff approved as new, is never confirmed on its own say-so.
+     * Graduates we can confirm to an employer (FR-6): a record with an official student number (from
+     * the Registrar's records, or set when staff approved the claim after checking it), whose graduation
+     * has happened. A claimed number nobody has checked (declared_student_number) never counts.
      */
     public function scopeVerifiable(Builder $query): Builder
     {

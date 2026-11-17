@@ -83,7 +83,7 @@ class AlumniImportService
      */
     private function importRow(int $rowNumber, array $row, ImportReport $report): void
     {
-        $studentNumber = strtoupper((string) preg_replace('/\s+/u', ' ', $row['student_number'] ?? ''));
+        $studentNumber = \App\Support\StudentNumber::normalise($row['student_number'] ?? '');
         $firstName = $this->clean($row['first_name'] ?? '');
         $lastName = $this->clean($row['last_name'] ?? '');
 
@@ -91,6 +91,10 @@ class AlumniImportService
             if ($value === '') {
                 throw new RowRejected("Missing {$label}.");
             }
+        }
+
+        if (! \App\Support\StudentNumber::isValid($studentNumber)) {
+            throw new RowRejected("Student number \"{$studentNumber}\" is not in the university format (".\App\Support\StudentNumber::HINT.')');
         }
 
         $graduationDate = $this->date($row['graduation_date'] ?? '', 'graduation date');

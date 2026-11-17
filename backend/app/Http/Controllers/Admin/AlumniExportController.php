@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\VerificationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AlumniProfile;
+use App\Support\Audit;
 use App\Support\Csv;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -66,6 +67,19 @@ class AlumniExportController extends Controller
                 yield $row;
             }
         };
+
+        // Which filters were used, never the search text itself (it is often a person's name).
+        $int = fn ($v) => $v === null || $v === '' ? null : (int) $v;
+        Audit::record('export.alumni', meta: array_filter([
+            'search_used' => ($filters['q'] ?? '') !== '',
+            'school_id' => $int($filters['schoolId'] ?? null),
+            'department_id' => $int($filters['departmentId'] ?? null),
+            'programme_id' => $int($filters['programmeId'] ?? null),
+            'graduation_year' => $int($filters['year'] ?? null),
+            'status' => $filters['status'] ?? null,
+            'ta_candidates_only' => (bool) ($filters['ta'] ?? false),
+            'contact_details' => $withContact,
+        ], fn ($v) => $v !== null && $v !== false));
 
         return response()->streamDownload(
             fn () => Csv::stream($headings, $rows()),

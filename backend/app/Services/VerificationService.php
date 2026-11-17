@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\VerificationStatus;
 use App\Models\AlumniProfile;
 use App\Models\User;
+use App\Support\StudentNumber;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -14,15 +15,26 @@ use Illuminate\Validation\ValidationException;
  */
 class VerificationService
 {
-    public function approve(AlumniProfile $profile, User $staff): void
+    /** @return bool whether the claimed student number became the record's official one */
+    public function approve(AlumniProfile $profile, User $staff): bool
     {
         $this->assertPending($profile);
+
+        // Staff approving a claim vouch for it, so the student number the graduate gave becomes the
+        // record's official number (and employers can then confirm the degree) when it is in the
+        // university format and no other record already holds it. Otherwise it stays a claim, and
+        // the caller tells staff what to fix.
+        $claimed = StudentNumber::normalise($profile->declared_student_number);
+        $usable = StudentNumber::isValid($claimed)
+            && ! AlumniProfile::withTrashed()->where('student_number', $claimed)->whereKeyNot($profile->id)->exists();
 
         $profile->update([
             'verification_status' => VerificationStatus::Verified,
             'verified_at' => now(),
             'verified_by' => $staff->id,
-        ]);
+        ] + ($usable ? ['student_number' => $claimed, 'declared_student_number' => null] : []));
+
+        return $usable;
     }
 
     public function reject(AlumniProfile $profile, User $staff): void

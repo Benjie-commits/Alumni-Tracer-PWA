@@ -4,6 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // Alumni PWA (spec section 8: Vue 3 + Vite, Workbox service worker).
 export default defineConfig({
+  // One server: the built app is served by Laravel under /app (single sign-in for everyone).
+  base: '/app/',
   plugins: [
     vue(),
     VitePWA({
@@ -18,8 +20,8 @@ export default defineConfig({
         background_color: '#12355b',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
-        scope: '/',
+        start_url: '/app/',
+        scope: '/app/',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -29,7 +31,7 @@ export default defineConfig({
       workbox: {
         // The app shell works offline. Personal API responses are deliberately NOT cached: alumni often
         // use shared or borrowed phones, so nothing personal may outlive the signed-in session.
-        navigateFallback: '/index.html',
+        navigateFallback: '/app/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/admin/, /^\/livewire/, /^\/u\//, /^\/verify/],
         globPatterns: ['**/*.{js,css,html,png,svg}'],
         runtimeCaching: [
@@ -47,9 +49,11 @@ export default defineConfig({
     // In development the API is proxied, so there is no cross-origin traffic at all. "/u/" is the
     // "stop messaging me" page from every SMS: a server-rendered page, not part of this app.
     // "/verify" is the employer verification page and the links alumni share: also server-rendered.
-    proxy: { '/api': 'http://127.0.0.1:8000', '/u': 'http://127.0.0.1:8000', '/verify': 'http://127.0.0.1:8000' },
+    proxy: { '/admin': 'http://127.0.0.1:8000', '/api': 'http://127.0.0.1:8000', '/u': 'http://127.0.0.1:8000', '/verify': 'http://127.0.0.1:8000' },
   },
   build: {
     target: 'es2020',
+    outDir: '../backend/public/app',
+    emptyOutDir: true,
   },
 })

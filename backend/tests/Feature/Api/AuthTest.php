@@ -49,7 +49,9 @@ class AuthTest extends ApiTestCase
         $staff = User::factory()->registrar()->create();
 
         $this->postJson('/api/v1/auth/login', ['email' => $staff->email, 'password' => 'password'])
-            ->assertForbidden();
+            ->assertOk()
+            ->assertJsonPath('data.status', 'staff')
+            ->assertJsonMissingPath('token');
     }
 
     public function test_logging_out_revokes_the_token(): void
@@ -95,5 +97,39 @@ class AuthTest extends ApiTestCase
         $staff = User::factory()->registrar()->create();
 
         $this->actingAs($staff, 'sanctum')->getJson('/api/v1/me/profile')->assertForbidden();
+    }
+
+    // ---- regressions: brute force and enumeration ------------------------------------------------
+
+    public function test_one_address_cannot_spray_a_password_across_many_accounts(): void
+    {
+        // Each email stays under its own limit of 5; the per-address limit of 20 stops the spray.
+        foreach (range(1, 20) as $i) {
+            $this->postJson('/api/v1/auth/login', ['email' => "person{$i}@example.com", 'password' => 'Password1'])->assertUnprocessable();
+        }
+
+        $this->postJson('/api/v1/auth/login', ['email' => 'person21@example.com', 'password' => 'Password1'])->assertTooManyRequests();
+    }
+
+    public function test_an_unknown_email_and_a_wrong_password_get_the_same_answer(): void
+    {
+        [$user] = $this->alumnus();
+
+        $unknown = $this->postJson('/api/v1/auth/login', ['email' => 'nobody@example.com', 'password' => 'wrong'])->assertUnprocessable();
+        $wrong = $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'wrong'])->assertUnprocessable();
+
+        $this->assertSame($unknown->json('errors'), $wrong->json('errors'));
+    }
+
+    public function test_signed_in_api_requests_are_rate_limited(): void
+    {
+        [$user] = $this->alumnus();
+        $this->actingAs($user, 'sanctum');
+
+        foreach (range(1, 60) as $_) {
+            $this->getJson('/api/v1/me')->assertOk();
+        }
+
+        $this->getJson('/api/v1/me')->assertTooManyRequests();
     }
 }

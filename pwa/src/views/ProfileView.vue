@@ -1,8 +1,10 @@
 <script setup>
+import PasswordInput from "../components/PasswordInput.vue"
 import { computed, onMounted, reactive, ref } from 'vue'
 import { api } from '../api.js'
 import { useForm } from '../useForm.js'
 import CredentialLinks from '../components/CredentialLinks.vue'
+import MentoringCard from '../components/MentoringCard.vue'
 import Field from '../components/Field.vue'
 
 const profile = ref(null)
@@ -16,6 +18,12 @@ const EDITABLE = [
   'employment_status', 'further_study_status', 'further_study_institution', 'further_study_programme',
 ]
 const form = reactive(Object.fromEntries(EDITABLE.map((key) => [key, ''])))
+
+// The email is also the sign-in email, so changing it needs the current password (the API insists).
+const currentPassword = ref('')
+const emailChanged = computed(() =>
+  Boolean(profile.value) && form.email.toLowerCase() !== (profile.value.email || '').toLowerCase(),
+)
 
 const status = computed(() => profile.value?.verification_status?.value)
 const lastUpdated = computed(() => {
@@ -67,9 +75,11 @@ async function save() {
   saved.value = false
   const ok = await submit(async () => {
     const payload = Object.fromEntries(EDITABLE.map((key) => [key, form[key] === '' ? null : form[key]]))
+    if (emailChanged.value) payload.current_password = currentPassword.value
     fill((await api.put('/me/profile', payload)).data)
   })
   saved.value = ok
+  if (ok) currentPassword.value = ''
 }
 </script>
 
@@ -113,6 +123,8 @@ async function save() {
 
     <CredentialLinks v-if="status === 'verified'" />
 
+    <MentoringCard />
+
     <form class="card" novalidate @submit.prevent="save">
       <h2>Keep your details up to date</h2>
       <p class="hint small" v-if="lastUpdated">You last confirmed these on {{ lastUpdated }}.</p>
@@ -120,8 +132,16 @@ async function save() {
       <p v-if="message" class="alert bad" role="alert">{{ message }}</p>
       <p v-if="saved" class="alert ok" role="status">Saved. Thank you!</p>
 
-      <Field label="Email" :error="errors.email">
-        <input v-model.trim="form.email" type="email" inputmode="email" autocomplete="email" />
+      <Field label="Email" :error="errors.email" hint="You also sign in with this email.">
+        <input v-model.trim="form.email" type="email" inputmode="email" autocomplete="email" required />
+      </Field>
+      <Field
+        v-if="emailChanged"
+        label="Current password"
+        :error="errors.current_password"
+        hint="Needed to change the email you sign in with."
+      >
+        <PasswordInput v-model="currentPassword" autocomplete="current-password" />
       </Field>
       <Field label="Phone" :error="errors.phone">
         <input v-model.trim="form.phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+256700000000" />

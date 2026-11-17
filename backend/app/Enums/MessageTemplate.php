@@ -13,6 +13,8 @@ enum MessageTemplate: string
     case SurveyReminder = 'survey_reminder';
     case ProfileNudge = 'profile_nudge';
     case RegisterInvite = 'register_invite';
+    /** The one-time code that proves a registering graduate holds the phone on their Registrar record (FR-2). */
+    case RegistrationCode = 'registration_code';
     case Test = 'test';
 
     /**
@@ -27,6 +29,8 @@ enum MessageTemplate: string
             self::SurveyReminder => "Soroti University: {$name}, your graduate survey is still open. It takes 2 minutes: {$p['url']} Stop: {$p['stop_url']}",
             self::ProfileNudge => "Soroti University: Hi {$name}, please confirm your alumni details are up to date: {$p['url']} Stop: {$p['stop_url']}",
             self::RegisterInvite => "Soroti University: Hi {$name}, join the alumni network and keep your details current: {$p['url']} Stop: {$p['stop_url']}",
+            // Asked for by the person a moment ago, so no stop link; it says what to do if it was not them.
+            self::RegistrationCode => "Soroti University: your alumni registration code is {$p['code']}. It expires in {$p['minutes']} minutes. If you did not ask for it, ignore this message.",
             self::Test => 'Soroti University SUN-ATES test message. If you can read this, SMS delivery is working.',
         };
     }
@@ -42,6 +46,7 @@ enum MessageTemplate: string
         return match ($this) {
             self::SurveyInvite => [$p['first_name'] ?? 'there', $p['period'], $p['url']],
             self::SurveyReminder, self::ProfileNudge, self::RegisterInvite => [$p['first_name'] ?? 'there', $p['url']],
+            self::RegistrationCode => [$p['code']],
             self::Test => [],
         };
     }

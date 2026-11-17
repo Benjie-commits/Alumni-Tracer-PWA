@@ -1,0 +1,7 @@
+# /etc/cron.d/sunates  (owner root, mode 644)
+# Laravel scheduler: surveys 09:00, nudges Tuesday 10:00, delivery status every 15 min, ERP sync,
+# pruning of codes / audit / verification logs (routes/console.php has the full list).
+* * * * * www-data cd /var/www/sunates/backend && php artisan schedule:run >> /dev/null 2>&1
+
+# Nightly encrypted database backup, 01:30 server time (deploy/backup/sunates-backup.sh).
+30 1 * * * root /usr/local/bin/sunates-backup.sh >> /var/log/sunates-backup.log 2>&1

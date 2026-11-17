@@ -22,7 +22,7 @@ class AlumniProfileFactory extends Factory
 
         return [
             'user_id' => null,
-            'student_number' => fake()->unique()->numerify('SU/####/###'),
+            'student_number' => fake()->unique()->numerify('1#01600###'),
             'programme_id' => Programme::factory(),
             'graduation_year' => $year,
             'graduation_date' => "{$year}-".fake()->randomElement(['06', '12']).'-15',

@@ -32,6 +32,15 @@ export function sendEntry(entry) {
   }, { auth: false })
 }
 
+/**
+ * Delete answers that could not be sent. Queued answers belong to survey links, not to the signed-in
+ * account, so this is never automatic: the app asks first (see sign-out in App.vue).
+ */
+export function discardQueuedSurveys() {
+  queue.clear()
+  pending.value = 0
+}
+
 export function queueSurveyAnswers(entry) {
   queue.enqueue(entry)
   pending.value = queue.size()

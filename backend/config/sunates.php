@@ -9,10 +9,30 @@ return [
     | The alumni PWA. Survey and nudge messages link here. In production this is normally the same
     | origin as the API. The "stop messaging me" link points at APP_URL (this Laravel app).
     */
-    'pwa_url' => rtrim((string) env('SUNATES_PWA_URL', 'http://127.0.0.1:5173'), '/'),
+    'pwa_url' => rtrim((string) env('SUNATES_PWA_URL', 'http://127.0.0.1:8000/app'), '/'),
 
     // Quiet hours and "due" dates are evaluated in Uganda time regardless of the server clock.
     'timezone' => env('SUNATES_TIMEZONE', 'Africa/Kampala'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Registration (FR-2): proving the person is the graduate in the record
+    |--------------------------------------------------------------------------
+    | A match on student number + surname + year sends a one-time code to the phone (WhatsApp, then
+    | SMS) or email the Registrar already holds; the record is claimed only when the code comes back.
+    | A matching record with no contact details goes to the staff verification queue instead.
+    */
+    'registration' => [
+        'code_ttl_minutes' => 15,
+        // Wrong codes allowed per challenge, across resends.
+        'max_attempts' => 5,
+        // Codes one challenge may send (the first plus resends), and the wait between them.
+        'max_sends' => 3,
+        'resend_after_seconds' => 60,
+        // Codes any one record may be sent in 24 hours, however many people ask: stops someone using
+        // the form to bombard a graduate's phone.
+        'max_per_record_per_day' => 5,
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -58,7 +78,8 @@ return [
         // Do not nudge someone who received any message from us in the last few days (e.g. a survey).
         'cooldown_after_any_message_days' => 14,
 
-        // Protects the SMS budget: the most nudges one daily run will send.
+        // Protects the SMS budget: the most nudges one run will send. The run is WEEKLY (routes/console.php),
+        // so this is a weekly cap. The key keeps its historical name so existing .env files still work.
         'daily_limit' => (int) env('NUDGES_DAILY_LIMIT', 200),
 
         // Invite Registrar-imported alumni who have not registered. Same consent caveat as surveys.
@@ -175,6 +196,41 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Staff audit trail (spec Figure 1 "Activity logs", section 9)
+    |--------------------------------------------------------------------------
+    | Sensitive staff actions: record edits, verification decisions, exports, imports, account changes.
+    | Field names only, never values. ICT staff read it under "Activity log" in the console.
+    */
+    'audit' => [
+        // Confirm with the data-protection review; three years covers an accreditation cycle.
+        'retention_days' => (int) env('AUDIT_LOG_RETENTION_DAYS', 1095),
+
+        'labels' => [
+            'alumni.updated' => 'Edited an alumni record',
+            'alumni.messaging_stopped' => 'Stopped messages to an alumnus',
+            'alumni.messaging_resumed' => 'Resumed messages to an alumnus',
+            'verification.approved' => 'Approved a registration as new',
+            'verification.rejected' => 'Rejected a registration',
+            'verification.linked' => 'Linked a registration to a Registrar record',
+            'export.alumni' => 'Exported the alumni directory',
+            'export.survey_responses' => 'Exported survey answers',
+            'export.outcomes' => 'Exported graduate outcomes',
+            'import.committed' => 'Imported a spreadsheet',
+            'staff.created' => 'Created a staff account',
+            'staff.activated' => 'Re-activated a staff account',
+            'staff.deactivated' => 'Deactivated a staff account',
+            'staff.password_reset' => 'Reset a staff password',
+            'enquiry.resolved' => 'Closed an employer enquiry',
+            'erp.sync_started' => 'Started a SorotiUniERP sync',
+            'students.created' => 'Added a current student',
+            'students.updated' => 'Edited a current student',
+            'mentorship.created' => 'Matched a mentor and a student',
+            'mentorship.ended' => 'Ended a mentorship',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Outcome dashboards (FR-4)
     |--------------------------------------------------------------------------
     */
@@ -210,6 +266,8 @@ return [
             'survey_reminder' => env('WHATSAPP_TEMPLATE_SURVEY_REMINDER', 'sunates_survey_reminder'),
             'profile_nudge' => env('WHATSAPP_TEMPLATE_PROFILE_NUDGE', 'sunates_profile_nudge'),
             'register_invite' => env('WHATSAPP_TEMPLATE_REGISTER_INVITE', 'sunates_register_invite'),
+            // An "authentication" category template in Meta Business Manager, one parameter: the code.
+            'registration_code' => env('WHATSAPP_TEMPLATE_REGISTRATION_CODE', 'sunates_registration_code'),
             'test' => env('WHATSAPP_TEMPLATE_TEST', 'hello_world'),
         ],
         'whatsapp_language' => env('WHATSAPP_TEMPLATE_LANGUAGE', 'en'),
