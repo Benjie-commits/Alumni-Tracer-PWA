@@ -80,6 +80,11 @@ export function createSurveyQueue(storage = defaultStorage()) {
       save(load().filter((e) => e.submission_id !== submissionId))
     },
 
+    /** Forget everything waiting (only ever on the user's explicit say-so, e.g. at sign-out on a shared phone). */
+    clear() {
+      save([])
+    },
+
     /**
      * Try to send everything waiting, oldest first.
      *

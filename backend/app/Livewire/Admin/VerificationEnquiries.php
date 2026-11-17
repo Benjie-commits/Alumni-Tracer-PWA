@@ -7,6 +7,7 @@ use App\Enums\VerificationResult;
 use App\Livewire\Admin\Concerns\AuthorizesStaff;
 use App\Models\CredentialVerificationRequest;
 use App\Models\VerificationEscalation;
+use App\Support\Audit;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -60,6 +61,9 @@ class VerificationEnquiries extends Component
             'resolved_at' => now(),
             'resolution_note' => ($this->notes[$escalationId] ?? '') !== '' ? $this->notes[$escalationId] : null,
         ]);
+
+        Audit::record('enquiry.resolved', $escalation);
+        $this->dispatch('counts-changed');
 
         unset($this->notes[$escalationId]);
     }

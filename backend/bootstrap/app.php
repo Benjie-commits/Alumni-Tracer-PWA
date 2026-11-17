@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,7 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => EnsureRole::class,
+            'password.changed' => \App\Http\Middleware\EnsurePasswordChanged::class,
         ]);
+
+        // Spec section 9: browser security headers on every response (HSTS only over HTTPS).
+        $middleware->append(SecurityHeaders::class);
 
         // The only browser-facing area is the staff console, so unauthenticated visitors go to its sign-in.
         $middleware->redirectGuestsTo(fn () => route('admin.login'));

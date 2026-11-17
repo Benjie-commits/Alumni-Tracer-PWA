@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\ActivityLog;
+use App\Models\RegistrationChallenge;
 use Illuminate\Support\Facades\Schedule;
 
 /*
@@ -27,6 +29,10 @@ Schedule::command('sunates:sync-erp --scheduled')->dailyAt(config('sunates.erp.s
 
 // Retention: old lookup logs, resolved enquiries and dead credential links.
 Schedule::command('sunates:prune-verification-data')->monthlyOn(1, '03:00')->timezone($timezone)->onOneServer();
+
+// Spent or abandoned registration codes (FR-2): they hold an encrypted password hash, so do not keep them.
+// Audit-trail entries older than sunates.audit.retention_days.
+Schedule::command('model:prune', ['--model' => [RegistrationChallenge::class, ActivityLog::class]])->daily()->onOneServer();
 
 // Housekeeping: expired API tokens and finished job records.
 Schedule::command('sanctum:prune-expired --hours=24')->daily()->onOneServer();

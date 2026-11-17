@@ -13,7 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'phone', 'password', 'role_id', 'is_active'])]
+#[Fillable(['name', 'email', 'phone', 'password', 'role_id', 'is_active', 'must_change_password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -31,6 +31,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
             'password' => 'hashed',
         ];
     }
@@ -66,6 +67,16 @@ class User extends Authenticatable
     public function isAlumnus(): bool
     {
         return $this->hasRole(RoleSlug::Alumni);
+    }
+
+    public function isStudent(): bool
+    {
+        return $this->hasRole(RoleSlug::Student);
+    }
+
+    public function student(): HasOne
+    {
+        return $this->hasOne(Student::class);
     }
 
     /** Registrar and ICT admin may change records; QA/Dean viewers are read-only. */

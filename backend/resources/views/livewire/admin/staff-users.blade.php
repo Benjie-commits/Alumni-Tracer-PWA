@@ -24,7 +24,7 @@
                     <td><span class="pill {{ $member->is_active ? 'verified' : 'rejected' }}">{{ $member->is_active ? 'Active' : 'Deactivated' }}</span></td>
                     <td style="white-space:nowrap">
                         @if ($resettingId === $member->id)
-                            <input type="password" wire:model="newPassword" placeholder="New password (10+ chars)" autocomplete="new-password">
+                            <x-password-input wire:model="newPassword" placeholder="New password (10+ chars)" />
                             <button type="button" wire:click="savePassword">Save</button>
                             <button type="button" class="secondary" wire:click="$set('resettingId', null)">Cancel</button>
                             @error('newPassword')<div class="error">{{ $message }}</div>@enderror
@@ -57,7 +57,7 @@
                     @endforeach
                 </select>
                 @error('role')<span class="error">{{ $message }}</span>@enderror</label>
-            <label class="field"><span>Temporary password (10+ characters)</span><input type="password" wire:model="password" autocomplete="new-password">@error('password')<span class="error">{{ $message }}</span>@enderror</label>
+            <label class="field"><span>Temporary password (10+ characters)</span><x-password-input wire:model="password" />@error('password')<span class="error">{{ $message }}</span>@enderror</label>
         </div>
         <div class="actions"><button type="submit">Create account</button></div>
     </form>

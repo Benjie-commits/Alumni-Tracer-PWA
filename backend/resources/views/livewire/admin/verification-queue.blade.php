@@ -23,7 +23,7 @@
                     <div class="muted small">{{ $profile->email }} {{ $profile->phone ? '· '.$profile->phone : '' }} · registered {{ $profile->claimed_at?->diffForHumans() }}</div>
                 </div>
                 <div style="white-space:nowrap">
-                    <button type="button" wire:click="approve({{ $profile->id }})" wire:confirm="Approve {{ $profile->full_name }} as a new alumni record with no Registrar match?">Approve as new</button>
+                    <button type="button" wire:click="approve({{ $profile->id }})" wire:confirm="Approve {{ $profile->full_name }} as a graduate? Only do this after checking the academic records: their student number{{ $profile->declared_student_number ? ' ('.$profile->declared_student_number.')' : '' }} becomes official, and employers will be able to confirm their degree.">Approve as new</button>
                     <button type="button" class="danger" wire:click="reject({{ $profile->id }})" wire:confirm="Reject this claim?">Reject</button>
                 </div>
             </div>

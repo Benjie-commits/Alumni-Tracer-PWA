@@ -14,12 +14,18 @@
   --warn-bg: #fdf1d6;
   --bad: #a3271f;
   --bad-bg: #fbe4e2;
+  --bar: #12355b;
+  --bar-ink: #ffffff;
   --radius: 10px;
   color-scheme: light dark;
 }
 
+/* Theme: follows the device unless the user picks one with the switch (data-theme on <html>). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    --bar: #12355b;
+    --bar-ink: #ffffff;
+    --brand-ink: #ffffff;
     --bg: #101720;
     --panel: #18212d;
     --ink: #e6ebf2;
@@ -34,6 +40,25 @@
     --bad-bg: #3a1a18;
   }
 }
+:root[data-theme="dark"] {
+    --bar: #12355b;
+    --bar-ink: #ffffff;
+    --brand-ink: #ffffff;
+    --bg: #101720;
+    --panel: #18212d;
+    --ink: #e6ebf2;
+    --muted: #9aa7b8;
+    --line: #2f3a49;
+    --brand: #4a86c8;
+    --ok: #62c48b;
+    --ok-bg: #16301f;
+    --warn: #e5b652;
+    --warn-bg: #33290f;
+    --bad: #f0827a;
+    --bad-bg: #3a1a18;
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light; }
 
 * { box-sizing: border-box; }
 html {
@@ -53,10 +78,10 @@ body {
   position: sticky; top: 0; z-index: 5;
   display: flex; justify-content: space-between; align-items: center;
   padding: max(10px, env(safe-area-inset-top)) 16px 10px;
-  background: #12355b; color: #fff;
+  background: var(--bar); color: var(--bar-ink); border-bottom: 1px solid var(--line);
 }
 .brand { font-weight: 700; letter-spacing: .02em; }
-.topbar .link { color: #fff; }
+.topbar .link { color: var(--bar-ink); }
 
 .offline { margin: 0; padding: 8px 16px; background: var(--warn-bg); color: var(--warn); font-size: 14px; }
 
@@ -153,3 +178,21 @@ a { color: var(--brand); }
   .row { grid-template-columns: 1fr; }
   dl.facts { grid-template-columns: 1fr; }
 }
+
+/* Password box with a show/hide eye */
+.pw { position: relative; display: block; }
+.pw input { width: 100%; padding-right: 48px; }
+.pw-eye { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; min-height: 0; padding: 0; margin: 0;
+  display: grid; place-items: center; background: transparent; border: 0; color: var(--muted, #666); cursor: pointer; box-shadow: none; }
+.pw-eye:hover { color: inherit; background: transparent; }
+.pw-eye:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; border-radius: 8px; }
+
+/* "I have graduated / I'm a continuing student" choice on the register page */
+.who-choice { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 16px; }
+.chip { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--line);
+  color: var(--ink); text-decoration: none; font-weight: 600; background: var(--panel); }
+.chip.on { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, var(--panel)); color: var(--brand); }
+a.chip:hover { border-color: var(--brand); }
+a.button { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 18px; border-radius: 8px;
+  background: var(--brand); color: var(--brand-ink); font-weight: 600; text-decoration: none; }
+a.button.block { display: flex; width: 100%; }

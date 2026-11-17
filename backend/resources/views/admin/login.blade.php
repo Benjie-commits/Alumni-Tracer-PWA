@@ -6,6 +6,7 @@
     <meta name="robots" content="noindex, nofollow">
     <title>Staff sign-in · SUN-ATES</title>
     <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
+    @include('partials.theme')
 </head>
 <body>
 <div class="login">
@@ -31,6 +32,7 @@
     </form>
 
     <p class="muted small">Alumni: use the alumni app instead. This console is for Registrar, ICT and QA staff.</p>
+    <button type="button" class="secondary" data-theme-toggle onclick="sunatesToggleTheme()">Light / dark</button>
 </div>
 </body>
 </html>

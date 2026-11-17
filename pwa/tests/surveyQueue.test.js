@@ -165,3 +165,14 @@ test('confirmed answers leave no trace in storage', async () => {
 
   assert.ok(!storage.data['sunates.surveyQueue'].includes('Secret Ltd'))
 })
+
+test('clear() forgets everything waiting, in storage too (sign-out on a shared phone)', () => {
+  const storage = fakeStorage()
+  const queue = createSurveyQueue(storage)
+  ;['a', 'b'].forEach((id) => queue.enqueue(entry(id)))
+
+  queue.clear()
+
+  assert.equal(queue.size(), 0)
+  assert.equal(createSurveyQueue(storage).size(), 0, 'nothing comes back after a reload')
+})

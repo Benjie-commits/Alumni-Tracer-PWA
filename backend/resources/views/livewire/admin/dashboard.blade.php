@@ -7,27 +7,27 @@
     </div>
 
     <div class="cards">
-        <div class="card"><div class="n">{{ number_format($total) }}</div><div class="l">Alumni records</div></div>
-        <div class="card"><div class="n">{{ number_format($verified) }}</div><div class="l">Registered &amp; verified</div></div>
-        <div class="card"><div class="n">{{ number_format($unclaimed) }}</div><div class="l">Not yet registered</div></div>
-        <div class="card">
+        {{-- Every card opens the list behind its number (HCI: visible affordance, direct path to action). --}}
+        @php($canManage = auth()->user()->canManageRecords())
+        <a class="card go" href="{{ route('admin.alumni.index') }}"><div class="n">{{ number_format($total) }}</div><div class="l">Alumni records</div><span class="small">Open directory →</span></a>
+        <a class="card go" href="{{ route('admin.alumni.index', ['status' => 'verified']) }}"><div class="n">{{ number_format($verified) }}</div><div class="l">Registered &amp; verified</div><span class="small">See who →</span></a>
+        <a class="card go" href="{{ route('admin.alumni.index', ['status' => 'unclaimed']) }}"><div class="n">{{ number_format($unclaimed) }}</div><div class="l">Not yet registered</div><span class="small">See who →</span></a>
+        <a class="card go" href="{{ $canManage ? route('admin.verification') : route('admin.alumni.index', ['status' => 'pending']) }}">
             <div class="n">{{ number_format($pending) }}</div>
             <div class="l">Awaiting your review</div>
-            @if ($pending && auth()->user()->canManageRecords())
-                <a class="small" href="{{ route('admin.verification') }}">Review now →</a>
-            @endif
-        </div>
-        <div class="card"><div class="n">{{ number_format($fresh) }}</div><div class="l">Updated by alumni in last 12 months</div></div>
-        <div class="card">
+            <span class="small">{{ $canManage ? 'Review now →' : 'See who →' }}</span>
+        </a>
+        <a class="card go" href="{{ route('admin.alumni.index') }}"><div class="n">{{ number_format($fresh) }}</div><div class="l">Updated by alumni in last 12 months</div><span class="small">Open directory →</span></a>
+        <a class="card go" href="{{ route('admin.surveys') }}">
             <div class="n">{{ $surveysSent > 0 ? round($surveysDone / $surveysSent * 100).'%' : '—' }}</div>
             <div class="l">Tracer surveys answered so far</div>
-            <a class="small" href="{{ route('admin.surveys') }}">{{ number_format($surveysDone) }} of {{ number_format($surveysSent) }} →</a>
-        </div>
-        <div class="card">
+            <span class="small">{{ number_format($surveysDone) }} of {{ number_format($surveysSent) }} →</span>
+        </a>
+        <a class="card go" href="{{ route('admin.alumni.index', ['taOnly' => 1]) }}">
             <div class="n">{{ number_format($taCandidates) }}</div>
             <div class="l">Teaching-assistant candidates</div>
-            <a class="small" href="{{ route('admin.alumni.index', ['taOnly' => 1]) }}">View them →</a>
-        </div>
+            <span class="small">View them →</span>
+        </a>
     </div>
 
     <div class="panel">

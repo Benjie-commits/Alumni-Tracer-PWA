@@ -8,11 +8,13 @@ enum RoleSlug: string
     case Registrar = 'registrar';
     case IctAdmin = 'ict_admin';
     case QaViewer = 'qa_viewer';
+    case Student = 'student';
 
     public function label(): string
     {
         return match ($this) {
             self::Alumni => 'Alumni',
+            self::Student => 'Student',
             self::Registrar => 'Registrar staff',
             self::IctAdmin => 'ICT admin',
             self::QaViewer => 'QA / Dean viewer',

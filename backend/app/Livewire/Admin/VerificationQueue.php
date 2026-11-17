@@ -6,6 +6,7 @@ use App\Enums\VerificationStatus;
 use App\Livewire\Admin\Concerns\AuthorizesStaff;
 use App\Models\AlumniProfile;
 use App\Services\VerificationService;
+use App\Support\Audit;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -27,15 +28,22 @@ class VerificationQueue extends Component
     {
         $this->authorizeManager();
 
-        $verification->approve($this->pending($profileId), auth()->user());
-        $this->notice = 'Approved as a new alumni record.';
+        $official = $verification->approve($profile = $this->pending($profileId), auth()->user());
+        Audit::record('verification.approved', $profile);
+        $this->dispatch('counts-changed');
+        $this->notice = $official
+            ? "Approved. {$profile->full_name} is now a verified graduate with student number {$profile->student_number}, so employers can confirm their degree."
+            : "Approved, but {$profile->full_name}'s claimed student number is missing, not in the university format, or already used by another record, "
+              .'so employers cannot confirm this degree yet. Open the record in the Alumni directory and enter the official student number.';
     }
 
     public function reject(int $profileId, VerificationService $verification): void
     {
         $this->authorizeManager();
 
-        $verification->reject($this->pending($profileId), auth()->user());
+        $verification->reject($profile = $this->pending($profileId), auth()->user());
+        Audit::record('verification.rejected', $profile);
+        $this->dispatch('counts-changed');
         $this->notice = 'Rejected.';
     }
 
@@ -43,7 +51,10 @@ class VerificationQueue extends Component
     {
         $this->authorizeManager();
 
-        $verification->linkToRecord($this->pending($profileId), AlumniProfile::query()->findOrFail($recordId), auth()->user());
+        $record = AlumniProfile::query()->findOrFail($recordId);
+        $verification->linkToRecord($this->pending($profileId), $record, auth()->user());
+        Audit::record('verification.linked', $record, meta: ['claim_id' => $profileId]);
+        $this->dispatch('counts-changed');
         $this->notice = 'Linked to the Registrar record and verified.';
     }
 

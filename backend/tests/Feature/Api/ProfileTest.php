@@ -62,9 +62,61 @@ class ProfileTest extends ApiTestCase
     {
         [$user] = $this->alumnus();
 
-        $this->actingAs($user, 'sanctum')->putJson('/api/v1/me/profile', ['email' => 'new.address@example.com'])->assertOk();
+        $this->actingAs($user, 'sanctum')->putJson('/api/v1/me/profile', [
+            'email' => 'new.address@example.com',
+            'current_password' => 'password',
+        ])->assertOk();
 
         $this->assertSame('new.address@example.com', $user->fresh()->email);
+    }
+
+    // ---- regressions: changing the sign-in email -------------------------------------------------
+
+    public function test_changing_the_sign_in_email_needs_the_current_password(): void
+    {
+        [$user] = $this->alumnus();
+        $before = $user->email;
+
+        $this->actingAs($user, 'sanctum')->putJson('/api/v1/me/profile', ['email' => 'thief@example.com'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('current_password');
+
+        $this->assertSame($before, $user->fresh()->email);
+    }
+
+    public function test_a_wrong_current_password_does_not_change_the_sign_in_email(): void
+    {
+        [$user] = $this->alumnus();
+        $before = $user->email;
+
+        $this->actingAs($user, 'sanctum')->putJson('/api/v1/me/profile', [
+            'email' => 'thief@example.com',
+            'current_password' => 'not-it',
+        ])->assertUnprocessable()->assertJsonValidationErrors('current_password');
+
+        $this->assertSame($before, $user->fresh()->email);
+    }
+
+    public function test_other_fields_and_the_unchanged_email_need_no_password(): void
+    {
+        [$user] = $this->alumnus();
+
+        // The PWA always sends the whole form, including the email as it already is (in any case).
+        $this->actingAs($user, 'sanctum')->putJson('/api/v1/me/profile', [
+            'email' => strtoupper($user->email),
+            'city' => 'Soroti',
+        ])->assertOk()->assertJsonPath('data.city', 'Soroti');
+    }
+
+    public function test_the_sign_in_email_cannot_be_cleared(): void
+    {
+        [$user] = $this->alumnus();
+
+        $this->actingAs($user, 'sanctum')->putJson('/api/v1/me/profile', ['email' => null])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+
+        $this->assertNotNull($user->fresh()->email);
     }
 
     public function test_the_email_cannot_be_taken_from_another_account(): void

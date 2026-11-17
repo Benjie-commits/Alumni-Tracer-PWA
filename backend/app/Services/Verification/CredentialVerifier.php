@@ -92,6 +92,29 @@ class CredentialVerifier
     }
 
     /**
+     * The stored name, normalised in SQL the way nameWords() normalises what was typed, with a space
+     * either side so a LIKE on " word " only ever matches a whole word. Registrar spreadsheets carry
+     * punctuation ("Okello Jr.", "Okello, Amina", "Amina (Grace) Okello") that the typed name never has.
+     * Hyphens and commas separate words; other punctuation is dropped, as nameWords() drops it.
+     * Case and accents are left to the column's collation (utf8mb4, case- and accent-insensitive).
+     */
+    public static function normalisedRecordedName(): string
+    {
+        $sql = "CONCAT_WS(' ', first_name, other_names, last_name)";
+
+        foreach (['-' => ' ', ',' => ' ', '.' => '', "'" => '', '’' => '', '(' => '', ')' => '', '"' => ''] as $from => $to) {
+            $sql = "REPLACE({$sql}, ".self::sqlString($from).', '.self::sqlString($to).')';
+        }
+
+        return "CONCAT(' ', {$sql}, ' ')";
+    }
+
+    private static function sqlString(string $value): string
+    {
+        return "'".str_replace("'", "''", $value)."'";
+    }
+
+    /**
      * Graduates whose recorded name contains every word that was typed, in any order, as whole words.
      * "Amina Okello" finds "Amina Grace Okello" and "Okello, Amina" but not "Aminata Okello".
      *
@@ -100,9 +123,7 @@ class CredentialVerifier
      */
     private function matching(array $words, ?int $programmeId, ?int $graduationYear)
     {
-        // Same normalisation as nameWords(), applied to the stored names, with a space either side
-        // so a LIKE on " word " only ever matches a whole word.
-        $recorded = "CONCAT(' ', REPLACE(REPLACE(REPLACE(CONCAT_WS(' ', first_name, other_names, last_name), '-', ' '), '''', ''), '’', ''), ' ')";
+        $recorded = self::normalisedRecordedName();
 
         $query = AlumniProfile::query()->verifiable()->with('programme');
 

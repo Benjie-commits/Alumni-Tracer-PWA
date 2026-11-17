@@ -16,7 +16,7 @@ SorotiUniERP hook, and the staff follow-up route that stands in for LinkedIn mon
 | Spec | Status | Where |
 |---|---|---|
 | FR-1 Directory and search, filter, export | Done | Console: *Alumni directory* (search, School → Department → Programme, year, status, teaching-assistant candidates, CSV export) |
-| FR-2 Alumni self-service and identity check | Done | PWA registration matches student number + surname + graduation year against Registrar records; profile and work history editing |
+| FR-2 Alumni self-service and identity check | Done | PWA registration matches student number + surname + graduation year against Registrar records, **then proves it with a one-time code sent to the phone or email the Registrar holds**; profile and work history editing; forgotten-password reset by email |
 | FR-3 Automated tracer surveys + TA flag | Done | Surveys at 6 months, 1 year and 3 years, sent by WhatsApp/SMS link; answered in the PWA; strong, available graduates flagged for teaching-assistant consideration |
 | FR-7 Data-freshness nudges | Done (consent-based) | Weekly WhatsApp/SMS nudge to alumni who have not confirmed their record for a year. LinkedIn is **not** consulted (see *LinkedIn* below for why) |
 | FR-4 Outcome dashboards | Done | Console: *Graduate outcomes*: employment, further study and entrepreneurship by School / Department / Programme / year, with export. Small groups are withheld |
@@ -24,7 +24,9 @@ SorotiUniERP hook, and the staff follow-up route that stands in for LinkedIn mon
 | FR-8 Admin console, bulk import | Done | Console: CSV import with preview, verification queue, staff accounts, surveys, message log, employer enquiries |
 | FR-9 SorotiUniERP hook | Built, **not yet run against the real ERP** | `ERP_DRIVER` = `none` (standalone, the default), `rest` or `database`. A daily sync turns graduating students into alumni records by the same rules as a spreadsheet import. Console: *SorotiUniERP sync* (test connection, preview, sync now, history) |
 | LinkedIn cross-check (spec 7.4) | **Partly built; needs sign-off** | LinkedIn's official sign-in cannot show job changes, so a consent-based "periodic check" is not buildable as written. Built instead: an optional LinkedIn address the alumnus can give, and a staff *Follow-up list* for the manual search the spec allows |
-| FR-5 Engagement (events, mentorship, jobs) | **Not scheduled** | Listed as a requirement but the spec's phase plan (section 11) does not assign it to any phase |
+| FR-5 Engagement (events, mentorship, jobs) | Done (students staff-managed) | Console: *Jobs and internships*, *Events* (each aimed at all alumni, a school, department or programme, and/or graduation years) and *Mentorship* (staff record current students and match them with alumni who offered). PWA: *Jobs & events* tab; *Mentor a current student* card on the profile. In-app only: no SMS/WhatsApp alerts for postings |
+| Staff audit trail (spec Figure 1, section 9) | Done | Console: *Activity log* (ICT): record edits (field names only), verification decisions, imports, exports, staff-account changes, mentorship |
+| Deployment kit, backups, ERD, handover (spec 6, 9, 10, 13) | Prepared, **not yet run on a server** | `deploy/` (Nginx, Supervisor, cron, encrypted backup script, production `.env` template), `docs/erd.md`, `docs/handover.md`, `docs/testing-checklist.md`, `docs/srs-compliance.md` |
 
 ## Local setup
 
@@ -54,11 +56,44 @@ powershell -ExecutionPolicy Bypass -File scripts\dev.ps1 start
 without a worker they would sit unsent. On other platforms run `php artisan serve`, `php artisan queue:work`,
 `php artisan schedule:work` and `npm run dev` yourself.
 
-Optional fake data for local development (refuses to run outside `local`/`testing`; every school is prefixed `DEMO`):
+### One server, one sign-in (current setup)
+
+The alumni/student app is compiled into the Laravel server, so everyone uses **one address**:
+
+```powershell
+cd pwa     ; npm run build                                     # once, and again after changing anything in pwa\
+cd backend ; php artisan serve --host=127.0.0.1 --port=8000
+```
+
+Open <http://127.0.0.1:8000>: the homepage, then **Sign in**. Alumni and students go to the app (`/app`), staff are
+handed to the dashboard (`/admin`). The build lands in `backend\public\app` (git-ignored, so each clone builds it once).
+Student numbers use the university format `YY01600NNN` (cohort, university code `01600`, own 3 digits).
+`npm run dev` on :5173 still works for live-reload while editing the app.
+
+Optional fake data for local development (refuses to run outside `local`/`testing`; the people are invented, the
+schools and programmes are Soroti University's):
 
 ```powershell
 php artisan db:seed --class=DemoDataSeeder
 ```
+
+### Without `dev.ps1` (installed PHP and MySQL, e.g. MySQL80 service on port 3306)
+
+Create the databases once in MySQL (`CREATE DATABASE sunates; CREATE DATABASE sunates_testing;` and grant your user
+access), set `DB_PORT=3306`, `DB_USERNAME`, `DB_PASSWORD` in `backend\.env`, then run each of these in its own terminal:
+
+```powershell
+cd backend ; php artisan serve --host=127.0.0.1 --port=8000   # 1. API + staff console
+cd backend ; php artisan queue:work                            # 2. sends queued messages
+cd backend ; php artisan schedule:work                         # 3. daily/weekly jobs
+cd pwa     ; npm run dev -- --host 127.0.0.1                   # 4. alumni app (proxies /api, /u, /verify to :8000)
+```
+
+Staff console: <http://127.0.0.1:8000/admin> · Alumni app: <http://127.0.0.1:5173> · Employer check: <http://127.0.0.1:8000/verify>.
+Registration codes and password-reset links appear in `backend\storage\logs\laravel.log` in development.
+`--host 127.0.0.1` matters on Windows: plain `npm run dev` listens on IPv6 `localhost` only, so `http://127.0.0.1:5173`
+(the default `SUNATES_PWA_URL`, used in survey and reset links) would not open. If the alumni app shows "Something went
+wrong" on every action, the backend (terminal 1) is not running: Vite answers 502 for `/api` when nothing is on :8000.
 
 `dev.ps1` expects portable PHP and MySQL under `%USERPROFILE%\tools` (`php\`, `mysql-8.4.11-winx64\`, `mysql-8.4.ini`,
 MySQL on port **3307** so it can sit beside another MySQL). Pass `-Tools <folder>` to point elsewhere. Logs go to
@@ -67,9 +102,9 @@ MySQL on port **3307** so it can sit beside another MySQL). Pass `-Tools <folder
 ### Tests
 
 ```powershell
-cd backend ; php artisan test     # 588 tests; runs against MySQL database `sunates_testing`
-cd pwa     ; npm test             # 46 tests (Node's built-in runner)
-cd pwa     ; npm run build        # production bundle in pwa\dist
+cd backend ; php artisan test     # runs against MySQL database `sunates_testing` (unit tests alone: --testsuite=Unit)
+cd pwa     ; npm test             # Node's built-in runner
+cd pwa     ; npm run build        # production bundle in backend\public\app (served at /app)
 ```
 
 Create the `sunates_testing` database and grant your DB user access first; `phpunit.xml` forces that database name
@@ -79,10 +114,21 @@ is ever sent.
 ## Registration, verification and import (Phase 1)
 
 **Registration (FR-2).** Registrar records are imported as `unclaimed` profiles. When an alumnus registers, student
-number, surname and graduation year must all match one unclaimed record to be verified straight away (case and extra
-spaces ignored). Anything else becomes a self-declared claim in `pending` status, shown as "waiting for the Registrar",
-and appears in the console's **Verification queue**, where staff *link* it to the right record (e.g. a misspelt
-surname), *approve it as new*, or *reject* it. A failed match never reveals which records exist.
+number, surname and graduation year must all match one unclaimed record (case and extra spaces ignored). Those three
+facts are often known to classmates, so a match alone does **not** claim the record: a 6-digit code is sent to the
+**phone (WhatsApp, then SMS) or email the Registrar already holds for that record** (never to what the person typed),
+and only that code, typed back within 15 minutes, claims and verifies it. Five wrong tries end a code; a record is sent
+at most five codes a day; a new code can be asked for after a minute. Nothing is created until the code comes back, and
+the chosen password is stored only as a hash, encrypted, in the meantime. A matching record **with no phone or email**,
+and anything that does not match, becomes a self-declared claim in `pending` status, shown as "waiting for the
+Registrar", and appears in the console's **Verification queue**, where staff *link* it to the right record (e.g. a
+misspelt surname), *approve it as new*, or *reject* it. In development the code is written to
+`storage/logs/laravel.log` (log drivers); nothing is sent.
+
+**Accounts.** *Forgot your password?* in the app emails a link (60 minutes, one per minute per account) to the PWA's
+*Choose a new password* screen; the reset signs the alumnus out on every device. The answer is the same whether or not
+the email has an account. Changing the sign-in email in the app needs the current password; staff changing a registered
+alumnus's email in the console changes their sign-in email too.
 
 **Bulk import (FR-8).** *Import from spreadsheet* takes a CSV export. Required columns: Student number, First name,
 Surname. Optional: Other names, Gender, School, Department, Programme, Graduation year/date (dd/mm/yyyy or
@@ -143,7 +189,8 @@ deliberately **not** stored, because survey messages contain a private link.
   number) moves to the next channel.
 - **Nudges (FR-7):** `php artisan sunates:nudges` runs weekly. A record is stale if the alumnus has not edited it or
   answered a survey for **a year**. At most one nudge per quarter and three a year; nothing to anyone who heard from us
-  in the last 14 days; a daily cap (default 200) protects the SMS budget; `--dry-run` shows who would be nudged.
+  in the last 14 days; a cap of 200 per weekly run (`NUDGES_DAILY_LIMIT`, named before the run became weekly) protects
+  the SMS budget; `--dry-run` shows who would be nudged.
 - **Delivery receipts:** WhatsApp reports by webhook (signature-checked, receipts that arrive out of order never move a
   message backwards). MTN is polled every 15 minutes (`sunates:sync-delivery-status`).
 - **Console → Messages** shows the log, 30-day counts, and (ICT) a **send a test message** form for checking credentials.
@@ -159,14 +206,15 @@ to `storage/logs/laravel.log` and nothing is sent. To go live, with the Director
 2. **WhatsApp:** create a Meta Business app with the WhatsApp Cloud API, fill `WHATSAPP_PHONE_NUMBER_ID`,
    `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, choose a `WHATSAPP_VERIFY_TOKEN`, and set `WHATSAPP_DRIVER=cloud`.
    Register the webhook `https://<your-domain>/api/webhooks/whatsapp` (subscribe to *messages*).
-3. **Create four message templates** in Meta Business Manager (business-initiated messages must use approved templates;
+3. **Create five message templates** in Meta Business Manager (business-initiated messages must use approved templates;
    names are configurable in `config/sunates.php`). Suggested bodies, with `{{n}}` filled in this order:
    `sunates_survey_invite`: "Hi {{1}}, Soroti University would like to hear how you are doing {{2}} after graduating. It
    takes 2 minutes: {{3}}" · `sunates_survey_reminder`: "Hi {{1}}, your Soroti University graduate survey is still open.
    It takes 2 minutes: {{2}}" · `sunates_profile_nudge`: "Hi {{1}}, please confirm your Soroti University alumni details
    are up to date: {{2}}" · `sunates_register_invite`: "Hi {{1}}, join the Soroti University alumni network and keep
-   your details current: {{2}}". Add a footer such as "Reply STOP to stop messages". Meta decides each template's category
-   and therefore its price; confirm with ICT.
+   your details current: {{2}}" · `sunates_registration_code` (*authentication* category, one parameter: the code; Meta
+   supplies the wording for authentication templates). Add a footer such as "Reply STOP to stop messages" to the first
+   four. Meta decides each template's category and therefore its price; confirm with ICT.
 4. Set `SUNATES_PWA_URL` and `APP_URL` to the real https addresses (survey links and the stop link are built from them).
 
 > **Honesty note:** both provider adapters are built to the providers' published API documentation and tested against
@@ -337,7 +385,8 @@ source without touching the rest; until then the above is what the spec's own fa
 | Employer / partner (no account) | | | | | | `/verify` only |
 
 The *SorotiUniERP sync* page and the *Follow-up list* are Registrar/ICT pages (QA/Dean viewers cannot open either);
-only ICT can start an ERP sync.
+only ICT can start an ERP sync. *Jobs and internships*, *Events* and *Mentorship* (FR-5) are Registrar/ICT pages;
+the *Activity log* (audit trail) is ICT only.
 
 Alumni use the API with bearer tokens (30 days, one per device). Staff use session sign-in to the console; staff cannot
 use the alumni API and alumni cannot enter the console. QA/Dean viewers deliberately receive no personal contact details
@@ -345,10 +394,15 @@ use the alumni API and alumni cannot enter the console. QA/Dean viewers delibera
 
 ### API (`/api/v1`)
 
-Public: `GET reference/programmes`, `GET reference/options`, `POST auth/register` (5/min/IP), `POST auth/login`
-(5/min per email+IP), `GET surveys/{token}` and `POST surveys/{token}/responses` (30/min/IP; the token is the credential).
-Alumni (bearer token): `POST auth/logout`, `GET me`, `GET|PUT me/profile` (including the optional `linkedin_url`), `GET|POST me/employment-records`,
-`PUT|DELETE me/employment-records/{id}`, `GET me/surveys`, `GET|PUT me/notification-preferences`.
+Public: `GET reference/programmes`, `GET reference/options`, `POST auth/register` (5/min/IP; 202 with a `challenge` when a
+code was sent to the record's contact, 201 with a token for a pending claim), `POST auth/register/verify` (the 6-digit
+code; 10/min/IP), `POST auth/register/resend` (5/min/IP), `POST auth/login` (5/min per email+IP and 20/min per IP),
+`POST auth/forgot-password` and `POST auth/reset-password` (5/min/IP), `GET surveys/{token}` and
+`POST surveys/{token}/responses` (30/min/IP; the token is the credential).
+Alumni (bearer token, 60/min per account): `POST auth/logout`, `GET me`, `GET|PUT me/profile` (including the optional
+`linkedin_url`; changing `email` needs `current_password`), `GET|POST me/employment-records`,
+`PUT|DELETE me/employment-records/{id}`, `GET me/surveys`, `GET|PUT me/notification-preferences`, `GET me/jobs`,
+`GET me/events`, `GET|PUT me/mentoring`.
 Employer verification (no sign-in, rate-limited): `POST verification/lookup`. Alumni also: `GET|POST me/credential-links`, `DELETE me/credential-links/{id}`.
 Provider callbacks: `GET|POST /api/webhooks/whatsapp` (verify token + `X-Hub-Signature-256`). Server-rendered:
 `GET|POST /u/{token}` ("stop messaging me"), `GET|POST /verify`, `POST /verify/enquiry`, `GET /verify/{token}`.
@@ -377,7 +431,7 @@ Provider callbacks: `GET|POST /api/webhooks/whatsapp` (verify token + `X-Hub-Sig
 - **No back-fill.** Graduates whose 6-month/1-year/3-year window closed before launch are never surveyed. A one-off
   survey for them is possible but is a separate decision.
 - **Timing and limits:** 90-day window, reminders at day 7 and 21, quiet hours 19:00 to 08:00, nudges after a year of
-  silence, one per quarter, three per year, daily cap 200. All in `config/sunates.php`.
+  silence, one per quarter, three per year, at most 200 per weekly run. All in `config/sunates.php`.
 - **Teaching-assistant criteria:** First Class / Second Class Upper plus a yes. Confirm the class-of-award wording the
   Registrar actually uses.
 - **Survey answers update the profile** (employment and further-study status) and count as confirming the record.
@@ -413,16 +467,21 @@ Provider callbacks: `GET|POST /api/webhooks/whatsapp` (verify token + `X-Hub-Sig
 
 ## Open items
 
-- **FR-5 Engagement (event postings, mentorship matching, job/internship postings) is in the spec's requirements but in
-  none of its four phases.** It needs a decision on when and with whom to build it.
+- **Current students have no accounts.** Mentorship works with a staff-kept student list because no process for
+  verifying a current student's identity has been decided. If students should sign in, that needs a decision (and a
+  data-protection check) first.
+- **Job and event alerts are in-app only.** Sending them by SMS/WhatsApp would need new Meta-approved templates and an
+  SMS budget decision.
 - **The SorotiUniERP hook has not been run against SorotiUniERP**, and the MTN SMS and WhatsApp adapters have not been
   run against live accounts (MTN's SMS API needs OAuth client credentials from developers.mtn.com; MTN MoMo payment
   sandbox keys are a different product and cannot send SMS).
 
 - Spreadsheet import is CSV only; add `.xlsx` if the Registrar's files cannot easily be saved as CSV UTF-8.
-- Production hosting, domain, TLS and backups (spec section 10) are still to be confirmed with ICT.
+- Production hosting, domain, TLS and backups (spec section 10) are still to be confirmed with ICT. The kit in `deploy/`
+  is prepared but has not been run on a server.
 - The data-protection review should complete before alumni data is collected at scale. The consent wording on the
   registration screen is a draft for that review.
 - Reference-data screens (rename or merge schools, departments, programmes) are not built; the import creates them.
-- The PWA has no password reset yet (needs an email or SMS channel decision).
+- Registration codes and password resets need a working mail relay (`MAIL_*`) and, for WhatsApp, the approved
+  `sunates_registration_code` template before go-live.
 - Surveys are in English only; Luganda/Ateso translations would need per-language questionnaire versions.

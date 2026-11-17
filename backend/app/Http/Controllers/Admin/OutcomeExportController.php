@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Services\Outcomes\OutcomeFilters;
 use App\Services\Outcomes\OutcomeReport;
+use App\Support\Audit;
 use App\Support\Csv;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -56,6 +57,9 @@ class OutcomeExportController extends Controller
                 ]);
             }
         };
+
+        // Aggregates only, but who took which cut of the outcomes is still worth knowing.
+        Audit::record('export.outcomes', meta: ['source' => $filters->source, 'grouped_by' => $filters->groupLabel()]);
 
         return response()->streamDownload(
             fn () => Csv::stream($headings, $rows()),

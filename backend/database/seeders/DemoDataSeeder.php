@@ -4,13 +4,17 @@ namespace Database\Seeders;
 
 use App\Enums\EmploymentStatus;
 use App\Enums\FurtherStudyStatus;
+use App\Enums\JobType;
 use App\Enums\RecordSource;
 use App\Enums\SurveyInvitationStatus;
 use App\Enums\VerificationStatus;
 use App\Models\AlumniProfile;
 use App\Models\Department;
+use App\Models\EventPosting;
+use App\Models\JobPosting;
 use App\Models\Programme;
 use App\Models\School;
+use App\Models\Student;
 use App\Models\SurveyInvitation;
 use App\Models\SurveyResponse;
 use App\Models\TracerSurveyCycle;
@@ -34,9 +38,18 @@ class DemoDataSeeder extends Seeder
         $this->call([RoleSeeder::class, SurveyCycleSeeder::class]);
 
         $programmes = collect([
-            'DEMO School of Science' => ['DEMO Biology' => ['BSc Demo Biology', 'BSc Demo Chemistry'], 'DEMO Computing' => ['BSc Demo Computer Science']],
-            'DEMO School of Education' => ['DEMO Curriculum' => ['BEd Demo Primary', 'BEd Demo Secondary']],
-            'DEMO School of Business' => ['DEMO Management' => ['BBA Demo Management', 'BSc Demo Accounting']],
+            // Soroti University's real schools and programmes (the people in this seeder are still invented).
+            'School of Health Sciences' => [
+                'Medicine and Surgery' => ['Bachelor of Medicine and Bachelor of Surgery (MBChB)'],
+                'Nursing' => ['Bachelor of Nursing Science (BNS)'],
+                'Allied Health Sciences' => ['Bachelor of Science in Physiotherapy', 'Bachelor of Medical Laboratory Sciences (BMLS)'],
+            ],
+            'School of Engineering and Technology' => [
+                'Electrical and Computer Engineering' => ['B.Eng. Electronics & Computer Engineering', 'B.Eng. Electrical & Electronics Engineering'],
+            ],
+            'School of Applied Science & Science Education' => [
+                'Accounting, Finance and Computing' => ['Bachelor of Science in Accounting, Finance, and Computing'],
+            ],
         ])->flatMap(function (array $departments, string $schoolName) {
             $school = School::query()->firstOrCreate(['name' => $schoolName]);
 
@@ -54,7 +67,7 @@ class DemoDataSeeder extends Seeder
             $year = fake()->numberBetween(2021, 2026);
 
             AlumniProfile::factory()->create([
-                'student_number' => sprintf('DEMO/%d/%03d', $year - 3, $i),
+                'student_number' => sprintf('%02d01600%03d', ($year - 3) % 100, $i),
                 'programme_id' => $programmes->random()->id,
                 'graduation_year' => $year,
                 'graduation_date' => "{$year}-06-30",
@@ -78,9 +91,67 @@ class DemoDataSeeder extends Seeder
             AlumniProfile::factory()->pending()->create([
                 'user_id' => User::factory()->alumnus()->create()->id,
                 'student_number' => null,
-                'declared_student_number' => sprintf('DEMO/2020/%03d', $i * 7),
+                'declared_student_number' => sprintf('2001600%03d', $i * 7),
                 'programme_id' => $programmes->random()->id,
                 'record_source' => RecordSource::SelfRegistered,
+            ]);
+        }
+
+        $this->seedRegistrableRecords($programmes->first());
+        $this->seedEngagement($programmes);
+    }
+
+    /**
+     * Two unclaimed records whose Registrar data includes contact details, so the registration code step
+     * (FR-2) can be shown. In development the code is not sent anywhere: with SMS_DRIVER=log and
+     * MAIL_MAILER=log it is written to storage/logs/laravel.log.
+     */
+    private function seedRegistrableRecords(Programme $programme): void
+    {
+        $records = [
+            ['2101600901', 'Grace', 'Akello', ['phone' => '+256700000901']],
+            ['2101600902', 'Peter', 'Ojok', ['email' => 'peter.ojok@example.test']],
+        ];
+
+        foreach ($records as [$number, $first, $last, $contact]) {
+            AlumniProfile::query()->updateOrCreate(['student_number' => $number], $contact + [
+                'first_name' => $first,
+                'last_name' => $last,
+                'programme_id' => $programme->id,
+                'graduation_year' => 2024,
+                'graduation_date' => '2024-06-30',
+                'class_of_award' => 'Second Class Upper',
+                'verification_status' => VerificationStatus::Unclaimed,
+                'record_source' => RecordSource::RegistrarImport,
+            ]);
+        }
+
+        $this->command?->info('Demo records you can register against (student number / surname / year 2024): 2101600901 Akello (code by WhatsApp/SMS log), 2101600902 Ojok (code by email log).');
+    }
+
+    /** FR-5 sample content: a few jobs and events aimed at different groups, and current students. */
+    private function seedEngagement($programmes): void
+    {
+        $first = $programmes->first();
+
+        JobPosting::factory()->create(['title' => 'Graduate trainee (DEMO)', 'organisation' => 'DEMO Agro Ltd']);
+        JobPosting::factory()->create([
+            'title' => 'Laboratory internship (DEMO)', 'organisation' => 'DEMO Regional Hospital', 'type' => JobType::Internship,
+            'programme_id' => $first->id, 'how_to_apply' => 'https://example.org/apply',
+        ]);
+        JobPosting::factory()->draft()->create(['title' => 'Draft posting (DEMO)', 'organisation' => 'DEMO Co']);
+
+        EventPosting::factory()->create(['title' => 'DEMO Alumni homecoming']);
+        EventPosting::factory()->create([
+            'title' => 'DEMO Career talk for recent graduates', 'graduation_year_from' => 2023,
+            'venue' => null, 'online_url' => 'https://example.org/live',
+        ]);
+
+        foreach (range(1, 4) as $i) {
+            Student::factory()->create([
+                'student_number' => sprintf('2401600%03d', $i),
+                'programme_id' => $programmes->random()->id,
+                'contact_shared_at' => $i % 2 === 0 ? now() : null,
             ]);
         }
     }

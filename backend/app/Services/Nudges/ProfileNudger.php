@@ -20,7 +20,7 @@ use Illuminate\Support\Carbon;
  * checking with an opt-in flow in a later phase.
  *
  * It is deliberately polite: at most one nudge per quarter and three a year, nothing to someone who
- * heard from us in the last fortnight, nothing to people who opted out, and a daily cap so one
+ * heard from us in the last fortnight, nothing to people who opted out, and a per-run cap so one
  * run cannot burn the SMS budget.
  */
 class ProfileNudger

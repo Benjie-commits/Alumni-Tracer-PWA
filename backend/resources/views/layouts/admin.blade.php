@@ -6,6 +6,7 @@
     <meta name="robots" content="noindex, nofollow">
     <title>{{ isset($title) ? $title.' · ' : '' }}SUN-ATES Admin</title>
     <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
+    @include('partials.theme')
     @livewireStyles
 </head>
 <body>
@@ -21,28 +22,30 @@
             @if ($user->canManageRecords())
                 <a href="{{ route('admin.verification') }}" @class(['active' => request()->routeIs('admin.verification')])>
                     Verification queue
-                    @if ($pendingCount = \App\Models\AlumniProfile::where('verification_status', \App\Enums\VerificationStatus::Pending)->count())
-                        <span class="pill pending">{{ $pendingCount }}</span>
-                    @endif
+                    <livewire:admin.nav-count kind="pending" />
                 </a>
                 <a href="{{ route('admin.verification-enquiries') }}" @class(['active' => request()->routeIs('admin.verification-enquiries')])>
                     Employer enquiries
-                    @if ($openEnquiries = \App\Models\VerificationEscalation::where('status', \App\Enums\EscalationStatus::Open)->count())
-                        <span class="pill pending">{{ $openEnquiries }}</span>
-                    @endif
+                    <livewire:admin.nav-count kind="enquiries" />
                 </a>
                 <a href="{{ route('admin.notifications') }}" @class(['active' => request()->routeIs('admin.notifications')])>Messages</a>
                 <a href="{{ route('admin.follow-up') }}" @class(['active' => request()->routeIs('admin.follow-up')])>Follow-up list</a>
+                <a href="{{ route('admin.jobs') }}" @class(['active' => request()->routeIs('admin.jobs')])>Jobs and internships</a>
+                <a href="{{ route('admin.events') }}" @class(['active' => request()->routeIs('admin.events')])>Events</a>
+                <a href="{{ route('admin.mentorship') }}" @class(['active' => request()->routeIs('admin.mentorship')])>Mentorship</a>
                 <a href="{{ route('admin.import') }}" @class(['active' => request()->routeIs('admin.import')])>Import from spreadsheet</a>
                 <a href="{{ route('admin.erp') }}" @class(['active' => request()->routeIs('admin.erp')])>SorotiUniERP sync</a>
             @endif
             @if ($user->hasRole(\App\Enums\RoleSlug::IctAdmin))
                 <a href="{{ route('admin.staff') }}" @class(['active' => request()->routeIs('admin.staff')])>Staff accounts</a>
+                <a href="{{ route('admin.activity') }}" @class(['active' => request()->routeIs('admin.activity')])>Activity log</a>
             @endif
         </nav>
         <div class="who">
-            {{ $user->name }}<br>
-            <span style="opacity:.75">{{ $user->role?->name }}</span>
+            <span class="who-name">{{ $user->name }}</span>
+            <span class="who-role">{{ $user->role?->name }}</span>
+            <a href="{{ route('admin.password.edit') }}" class="who-link">Change my password</a>
+            <button type="button" data-theme-toggle onclick="sunatesToggleTheme()">Light / dark</button>
             <form method="post" action="{{ route('admin.logout') }}">
                 @csrf
                 <button type="submit">Sign out</button>

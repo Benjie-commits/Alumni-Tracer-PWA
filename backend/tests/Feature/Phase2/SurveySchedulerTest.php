@@ -432,4 +432,14 @@ class SurveySchedulerTest extends Phase2TestCase
         $this->assertSame(0, SurveyInvitation::count());
         $this->assertSame(0, AlumniProfile::first()->surveyInvitations()->count());
     }
+
+    public function test_waiting_out_quiet_hours_does_not_use_up_retry_attempts(): void
+    {
+        // Regression: with a fixed $tries every overnight release counted as an attempt.
+        $job = new SendSurveyInvitation(1);
+
+        $this->assertFalse(property_exists($job, 'tries'));
+        $this->assertTrue($job->retryUntil() > now()->addDays(2));
+        $this->assertSame(10, $job->maxExceptions);
+    }
 }

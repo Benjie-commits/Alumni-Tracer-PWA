@@ -6,6 +6,7 @@ use App\Enums\RoleSlug;
 use App\Livewire\Admin\Concerns\AuthorizesStaff;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\Audit;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
@@ -50,15 +51,17 @@ class StaffUsers extends Component
             'password' => ['required', 'string', Password::min(10)->max(128)],
         ]);
 
-        User::query()->create([
+        $created = User::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => $data['password'],
             'role_id' => Role::idFor(RoleSlug::from($data['role'])),
+            'must_change_password' => true,
         ]);
+        Audit::record('staff.created', $created, meta: ['role' => $data['role']]);
 
         $this->reset('name', 'email', 'role', 'password');
-        $this->notice = "Account created. Share the temporary password with {$data['name']} securely; they should change it after first sign-in.";
+        $this->notice = "Account created. Share the temporary password with {$data['name']} securely; they will be asked to choose their own password the first time they sign in.";
     }
 
     public function toggleActive(int $userId): void
@@ -75,6 +78,7 @@ class StaffUsers extends Component
         }
 
         $user->update(['is_active' => ! $user->is_active]);
+        Audit::record($user->is_active ? 'staff.activated' : 'staff.deactivated', $user);
 
         if (! $user->is_active) {
             $user->tokens()->delete();
@@ -97,9 +101,13 @@ class StaffUsers extends Component
         $this->validate(['newPassword' => ['required', 'string', Password::min(10)->max(128)]]);
 
         $user = $this->staffUser((int) $this->resettingId);
-        $user->update(['password' => $this->newPassword]);
+        // A password someone else chose is temporary: the owner must replace it at their next sign-in.
+        $user->update(['password' => $this->newPassword, 'must_change_password' => $user->id !== auth()->id()]);
+        Audit::record('staff.password_reset', $user);
 
-        $this->notice = "Password reset for {$user->name}.";
+        $this->notice = $user->id === auth()->id()
+            ? 'Your password has been changed.'
+            : "Temporary password set for {$user->name}. They will choose their own at next sign-in.";
         $this->reset('resettingId', 'newPassword');
     }
 

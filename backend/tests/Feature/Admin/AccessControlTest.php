@@ -6,44 +6,59 @@ use App\Models\User;
 
 class AccessControlTest extends AdminTestCase
 {
-    public function test_the_root_sends_visitors_to_the_console_and_guests_on_to_sign_in(): void
+    public function test_the_root_opens_the_app_and_console_guests_go_to_the_shared_sign_in(): void
     {
-        $this->get('/')->assertRedirect('/admin');
+        $this->get('/')->assertOk()->assertSee('Always Soroti')->assertSee('/app/login');
         $this->get('/admin')->assertRedirect(route('admin.login'));
-        $this->get('/admin/alumni')->assertRedirect(route('admin.login'));
+        $this->get(route('admin.login'))->assertRedirect('/app/login');
     }
 
-    public function test_staff_can_sign_in_and_reach_the_dashboard(): void
+    public function test_staff_sign_in_on_the_shared_page_and_are_handed_to_the_dashboard(): void
     {
         $staff = $this->registrar();
 
-        $this->post(route('admin.login.store'), ['email' => $staff->email, 'password' => 'password'])
-            ->assertRedirect(route('admin.dashboard'));
+        $redirect = $this->postJson('/api/v1/auth/login', ['email' => $staff->email, 'password' => 'password'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'staff')
+            ->assertJsonMissingPath('token')
+            ->json('data.redirect');
 
+        $this->get($redirect)->assertRedirect(route('admin.dashboard'));
         $this->assertAuthenticatedAs($staff);
         $this->get(route('admin.dashboard'))->assertOk()->assertSee('Dashboard');
         $this->assertNotNull($staff->fresh()->last_login_at);
     }
 
+    public function test_a_hand_off_link_works_only_once(): void
+    {
+        $staff = $this->registrar();
+        $redirect = $this->postJson('/api/v1/auth/login', ['email' => $staff->email, 'password' => 'password'])->json('data.redirect');
+
+        $this->get($redirect);
+        $this->post(route('admin.logout'));
+
+        $this->get($redirect)->assertRedirect('/app/login');
+        $this->assertGuest();
+    }
+
     public function test_bad_credentials_and_deactivated_staff_are_refused(): void
     {
         $staff = $this->registrar();
-        $this->post(route('admin.login.store'), ['email' => $staff->email, 'password' => 'wrong'])->assertSessionHasErrors('email');
+        $this->postJson('/api/v1/auth/login', ['email' => $staff->email, 'password' => 'wrong'])->assertJsonValidationErrors('email');
 
         $staff->update(['is_active' => false]);
-        $this->post(route('admin.login.store'), ['email' => $staff->email, 'password' => 'password'])->assertSessionHasErrors('email');
+        $this->postJson('/api/v1/auth/login', ['email' => $staff->email, 'password' => 'password'])->assertJsonValidationErrors('email');
 
         $this->assertGuest();
     }
 
-    public function test_an_alumnus_cannot_use_the_staff_console(): void
+    public function test_an_alumnus_gets_an_app_session_not_the_console(): void
     {
         $alumnus = User::factory()->alumnus()->create();
 
-        $this->post(route('admin.login.store'), ['email' => $alumnus->email, 'password' => 'password'])
-            ->assertSessionHasErrors('email');
-
-        $this->assertGuest();
+        $this->postJson('/api/v1/auth/login', ['email' => $alumnus->email, 'password' => 'password'])
+            ->assertOk()->assertJsonStructure(['token']);
+        $this->assertGuest('web');
     }
 
     public function test_an_alumnus_session_is_forbidden_even_if_it_somehow_exists(): void
@@ -85,7 +100,7 @@ class AccessControlTest extends AdminTestCase
 
     public function test_signing_out_ends_the_session(): void
     {
-        $this->actingAs($this->registrar())->post(route('admin.logout'))->assertRedirect(route('admin.login'));
+        $this->actingAs($this->registrar())->post(route('admin.logout'))->assertRedirect('/app/login');
 
         $this->assertGuest();
     }

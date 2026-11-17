@@ -8,6 +8,7 @@ use App\Enums\SurveyInvitationStatus;
 use App\Models\SurveyInvitation;
 use App\Services\Messaging\NotificationService;
 use App\Support\QuietHours;
+use DateTimeInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -21,13 +22,22 @@ class SendSurveyInvitation implements ShouldQueue
 {
     use Queueable;
 
-    /** Generous, because most failures are temporary provider trouble and back-off spreads them out. */
-    public int $tries = 10;
+    /**
+     * Genuine failures (temporary provider trouble) allowed before giving up. Waiting out quiet hours
+     * is a release, not a failure, so it never uses these up; retryUntil() bounds the total wait instead.
+     */
+    public int $maxExceptions = 10;
 
     public function __construct(
         public readonly int $invitationId,
         public readonly int $reminderNumber = 0,
     ) {}
+
+    /** Keep trying (through quiet hours and back-off) for three days; the survey itself stays open far longer. */
+    public function retryUntil(): DateTimeInterface
+    {
+        return now()->addDays(3);
+    }
 
     /** @return list<int> seconds */
     public function backoff(): array

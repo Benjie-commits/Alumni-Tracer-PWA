@@ -8,6 +8,8 @@ use App\Enums\NotificationChannel;
 use App\Livewire\Admin\Concerns\AuthorizesStaff;
 use App\Models\AlumniProfile;
 use App\Models\Programme;
+use App\Support\Audit;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -54,10 +56,10 @@ class AlumniDetail extends Component
         $this->authorizeManager();
         $this->saved = false;
 
-        $this->form['student_number'] = strtoupper(trim((string) ($this->form['student_number'] ?? '')));
+        $this->form['student_number'] = \App\Support\StudentNumber::normalise($this->form['student_number'] ?? '');
 
         $validated = $this->validate([
-            'form.student_number' => ['nullable', 'string', 'max:64', Rule::unique('alumni_profiles', 'student_number')->ignore($this->profile->id)],
+            'form.student_number' => ['nullable', 'string', 'max:64', \App\Support\StudentNumber::rule(),Rule::unique('alumni_profiles', 'student_number')->ignore($this->profile->id)],
             'form.first_name' => ['required', 'string', 'max:255'],
             'form.other_names' => ['nullable', 'string', 'max:255'],
             'form.last_name' => ['required', 'string', 'max:255'],
@@ -67,7 +69,10 @@ class AlumniDetail extends Component
             'form.graduation_year' => ['nullable', 'integer', 'between:1950,'.((int) date('Y') + 1)],
             'form.graduation_date' => ['nullable', 'date'],
             'form.class_of_award' => ['nullable', 'string', 'max:64'],
-            'form.email' => ['nullable', 'email:rfc', 'max:255'],
+            // For a registered alumnus this is also their sign-in email: required, and not another account's.
+            'form.email' => $this->profile->user_id
+                ? ['required', 'email:rfc', 'max:255', Rule::unique('users', 'email')->ignore($this->profile->user_id)]
+                : ['nullable', 'email:rfc', 'max:255'],
             'form.phone' => ['nullable', 'string', 'regex:/^\+?[0-9][0-9\s\-]{6,19}$/'],
             'form.whatsapp_number' => ['nullable', 'string', 'regex:/^\+?[0-9][0-9\s\-]{6,19}$/'],
             'form.country' => ['nullable', 'string', 'max:100'],
@@ -79,10 +84,28 @@ class AlumniDetail extends Component
         ], [
             'form.phone.regex' => 'Enter a valid phone number, e.g. +256700000000.',
             'form.whatsapp_number.regex' => 'Enter a valid WhatsApp number, e.g. +256700000000.',
+            'form.email.required' => 'This alumnus signs in with their email, so it cannot be left empty.',
+            'form.email.unique' => 'Another account already uses this email.',
         ])['form'];
 
-        // Empty inputs arrive as '' but the columns want NULL.
-        $this->profile->fill(array_map(fn ($v) => $v === '' ? null : $v, $validated))->save();
+        DB::transaction(function () use ($validated) {
+            // Empty inputs arrive as '' but the columns want NULL.
+            $this->profile->fill(array_map(fn ($v) => $v === '' ? null : $v, $validated))->save();
+            $changed = Audit::changesOf($this->profile);
+
+            // The contact email of a registered alumnus is also their sign-in email: keep the two together,
+            // as the alumni app does, so the alumnus is not left signing in with an address nobody can see.
+            $user = $this->profile->user;
+            $signInEmailChanged = false;
+            if ($user && $this->profile->email && $user->email !== $this->profile->email) {
+                $user->update(['email' => $this->profile->email]);
+                $signInEmailChanged = true;
+            }
+
+            if ($changed !== [] && $changed !== ['updated_at']) {
+                Audit::record('alumni.updated', $this->profile, $changed, $signInEmailChanged ? ['sign_in_email_changed' => true] : []);
+            }
+        });
 
         // Staff edits deliberately do not touch profile_updated_at: that timestamp means "the
         // alumnus themselves confirmed this", which is what the freshness nudges rely on.
@@ -146,5 +169,6 @@ class AlumniDetail extends Component
 
         $this->profile->setOptOut(null, ! $stopped);
         $this->profile->save();
+        Audit::record($stopped ? 'alumni.messaging_resumed' : 'alumni.messaging_stopped', $this->profile);
     }
 }
