@@ -28,6 +28,11 @@ SorotiUniERP hook, and the staff follow-up route that stands in for LinkedIn mon
 | Staff audit trail (spec Figure 1, section 9) | Done | Console: *Activity log* (ICT): record edits (field names only), verification decisions, imports, exports, staff-account changes, mentorship |
 | Deployment kit, backups, ERD, handover (spec 6, 9, 10, 13) | Prepared, **not yet run on a server** | `deploy/` (Nginx, Supervisor, cron, encrypted backup script, production `.env` template), `docs/erd.md`, `docs/handover.md`, `docs/testing-checklist.md`, `docs/srs-compliance.md` |
 
+## Easy launch (after the setup below has been done once)
+
+Double-click **`start.cmd`** in the project folder: it builds the alumni app if needed, starts everything and opens
+<http://127.0.0.1:8000>. Double-click **`stop.cmd`** to stop. Nothing to type.
+
 ## Local setup
 
 Requires **PHP 8.3+** (with `pdo_mysql`, `mbstring`, `intl`, `sodium`, `zip`, `gd`, `fileinfo`), **Composer 2**,

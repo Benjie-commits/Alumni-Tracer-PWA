@@ -105,6 +105,9 @@ class AppServiceProvider extends ServiceProvider
         // Survey links are capability URLs (the token is the credential); throttle guessing and abuse.
         RateLimiter::for('survey', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
 
+        // The ERP's push endpoint: one machine, a few batches an hour is plenty; this stops a wrong key being guessed at.
+        RateLimiter::for('erp-inbound', fn (Request $request) => Limit::perMinute(30)->by($request->ip()));
+
         // Provider callbacks: generous, but not unbounded.
         RateLimiter::for('webhook', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
 

@@ -23,7 +23,7 @@ class ErpSourcesTest extends Phase4TestCase
 
     private function records(int $n): array
     {
-        return array_map(fn (int $i) => $this->erpRecord(['student_number' => sprintf('SU/2026/%03d', $i)]), range(1, $n));
+        return array_map(fn (int $i) => $this->erpRecord(['student_number' => sprintf('2601600%03d', $i)]), range(1, $n));
     }
 
     // ---- choosing the driver -------------------------------------------------------------
@@ -63,7 +63,7 @@ class ErpSourcesTest extends Phase4TestCase
         $all = $this->fetchAll();
 
         $this->assertCount(5, $all);
-        $this->assertSame(['SU/2026/001', 'SU/2026/005'], [$all[0]['student_number'], $all[4]['student_number']]);
+        $this->assertSame(['2601600001', '2601600005'], [$all[0]['student_number'], $all[4]['student_number']]);
         $this->assertSame(['1', '2', '3', '4'], array_column(array_column($this->erpRequests, 'query'), 'page'), '5 records in pages of 2, then one empty page to be sure');
     }
 
@@ -295,7 +295,7 @@ class ErpSourcesTest extends Phase4TestCase
     private function viewRow(int $i, array $overrides = []): array
     {
         return $overrides + [
-            'reg_no' => sprintf('SU/2026/%03d', $i), 'given' => 'Amina', 'family' => "Okello{$i}", 'course' => 'BSc Biology',
+            'reg_no' => sprintf('2601600%03d', $i), 'given' => 'Amina', 'family' => "Okello{$i}", 'course' => 'BSc Biology',
             'conferred' => '2026-07-15', 'modified' => '2026-10-01 09:00:00', 'secret_column' => 'internal',
         ];
     }
@@ -306,7 +306,7 @@ class ErpSourcesTest extends Phase4TestCase
 
         $all = $this->fetchAll();
 
-        $this->assertSame(['SU/2026/001', 'SU/2026/002', 'SU/2026/003'], array_column($all, 'reg_no'));
+        $this->assertSame(['2601600001', '2601600002', '2601600003'], array_column($all, 'reg_no'));
         $this->assertSame('BSc Biology', $all[0]['course']);
     }
 
@@ -341,7 +341,7 @@ class ErpSourcesTest extends Phase4TestCase
 
         $changed = $this->fetchAll(Carbon::parse('2026-10-03 00:00:00', 'Africa/Kampala'));
 
-        $this->assertSame(['SU/2026/002'], array_column($changed, 'reg_no'));
+        $this->assertSame(['2601600002'], array_column($changed, 'reg_no'));
     }
 
     public function test_database_honours_a_limit(): void

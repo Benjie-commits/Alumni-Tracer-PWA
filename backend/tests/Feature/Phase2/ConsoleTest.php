@@ -206,14 +206,14 @@ class ConsoleTest extends Phase2TestCase
 
     public function test_the_export_has_one_column_per_question_in_readable_words(): void
     {
-        $this->answered($this->graduate(['student_number' => 'SU/2026/001', 'first_name' => 'Amina', 'last_name' => 'Okello', 'class_of_award' => 'First Class']));
+        $this->answered($this->graduate(['student_number' => '2601600001', 'first_name' => 'Amina', 'last_name' => 'Okello', 'class_of_award' => 'First Class']));
 
         $csv = $this->actingAs($this->registrar())->get(route('admin.surveys.export', $this->cycle()))->assertOk()->streamedContent();
         $rows = array_map('str_getcsv', array_filter(explode("\n", ltrim($csv, "\xEF\xBB\xBF"))));
         $header = $rows[0];
         $data = array_combine($header, $rows[1]);
 
-        $this->assertSame('SU/2026/001', $data['Student number']);
+        $this->assertSame('2601600001', $data['Student number']);
         $this->assertSame('Yes', $data['Teaching-assistant candidate']);
         $this->assertSame('Running my own business or working for myself', $data['What are you doing now?']);
         $this->assertSame('Okello Hardware', $data['Name of your employer or business']);

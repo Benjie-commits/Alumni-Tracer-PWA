@@ -106,7 +106,7 @@ class RegistrationTest extends ApiTestCase
         $this->reachableRecord();
 
         $this->registerAndVerify([
-            'student_number' => '  su/2021/014 ',
+            'student_number' => '  21-01600-014 ',
             'last_name' => ' OKELLO ',
         ])->assertCreated()->assertJsonPath('user.profile.verification_status.value', 'verified');
     }
@@ -264,13 +264,13 @@ class RegistrationTest extends ApiTestCase
         $pending = User::where('email', 'amina@example.com')->first()->alumniProfile;
         $this->assertSame(VerificationStatus::Pending, $pending->verification_status);
         $this->assertSame(RecordSource::SelfRegistered, $pending->record_source);
-        $this->assertSame('SU/2021/014', $pending->declared_student_number);
+        $this->assertSame('2101600014', $pending->declared_student_number);
         $this->assertNull($pending->student_number, 'a claim must never occupy a real student number');
     }
 
     public function test_an_unknown_student_number_is_accepted_as_pending_without_revealing_anything(): void
     {
-        $this->postJson('/api/v1/auth/register', $this->registrationPayload(['student_number' => 'XX/0000/000']))
+        $this->postJson('/api/v1/auth/register', $this->registrationPayload(['student_number' => '2601600999']))
             ->assertCreated()
             ->assertJsonPath('user.profile.verification_status.value', 'pending');
     }

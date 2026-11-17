@@ -1,12 +1,8 @@
 # SUN-ATES: compliance with the engineering specification (v1.0)
 
-Status as of 17 Oct 2026, after the SRS-alignment work on branch `setup/php-composer-environment`.
+Status as of 17 Nov 2026, on `main` at the merge of `setup/php-composer-environment` (commit `f248f47`) plus the ERP inbound endpoint.
 
-**How to read "Verified".** On the development machine used for this work, the MySQL test database
-(`sunates_testing`) was not available, so the **database-backed feature tests were written but not executed**.
-What *was* executed: the backend unit suite (88 tests incl. the security-header tests), PHP syntax checks of every
-changed file, route registration (`route:list`), Blade compilation (`view:cache`), the PWA test suite (51 tests) and
-the PWA production build. Run `cd backend; php artisan test` against `sunates_testing` to complete verification.
+**Verification.** On 17 Nov 2026 the full backend suite (649 tests, MySQL 8 `sunates_testing`) and the PWA suite (54 tests) passed. Real MTN, WhatsApp and ERP calls have not been made; those paths are tested against fakes.
 
 Legend: **Done** = built end-to-end (backend, UI, permissions) with tests · **Partial** = built in part or with a
 documented departure · **Blocked** = needs something outside the code (credentials, infrastructure, a decision) ·
@@ -20,11 +16,11 @@ documented departure · **Blocked** = needs something outside the code (credenti
 | FR-2 Registration, identity check, self-service profile | Done | `AlumniRegistrationService`, `RegisterView.vue`, `ProfileView.vue` | Match is now proven by a one-time code to the Registrar-held phone/email; records without contact go to staff. Password reset by email added; sign-in email change needs the current password |
 | FR-3 Surveys at 6 mo / 1 yr / 3 yr, TA flag | Done | `SurveyScheduler`, `SurveyView.vue` | Questionnaire is a draft pending QA/NCHE alignment (section 14) |
 | FR-4 Outcome dashboards with export | Done | Console *Graduate outcomes* | Small groups withheld |
-| FR-5 Events, mentorship, targeted job/internship postings | Done (students staff-managed) | Console *Jobs and internships*, *Events*, *Mentorship*; PWA *Jobs & events*, mentoring card | Students have no accounts (no identity process decided). Alerts are in-app only |
+| FR-5 Events, mentorship, targeted job/internship postings | Done | Console *Jobs and internships*, *Events*, *Mentorship*; PWA *Jobs & events*, mentoring card, student sign-up | Students can register and ask for a mentor; staff make the match. Postings are targeted by school, department, programme and graduation year. Alerts are in-app only (SMS/WhatsApp announcements need templates and a budget decision) |
 | FR-6 Credential verification | Done | `/verify`, `POST /api/v1/verification/lookup`, credential links | Name matching now tolerates punctuation in stored names |
 | FR-7 Data-freshness nudges | Done | `ProfileNudger`, `SendProfileNudge` | Retry bug fixed; rules re-checked at send time; LinkedIn per 7.4 below |
 | FR-8 Staff console, bulk import, reporting | Done | Livewire console | Activity log added |
-| FR-9 SorotiUniERP hook | Blocked (built) | `GraduateSource` adapters, console *SorotiUniERP sync* | Needs the real ERP interface and credentials to run |
+| FR-9 SorotiUniERP hook | Blocked (built) | `GraduateSource` adapters (pull), `POST /api/v1/erp/graduates` (push, `sunates:erp-token`), console *SorotiUniERP sync* | Both directions built and tested against fakes; needs the real ERP interface and credentials to run |
 
 ## Non-functional requirements (section 4)
 
@@ -72,6 +68,7 @@ documented departure · **Blocked** = needs something outside the code (credenti
 
 ## Decisions still needed (section 14 and this work)
 
+0. Test status: backend 649/649 and PWA 54/54 pass on MySQL 8 (17 Nov 2026).
 1. Data-protection review: consent wording, retention periods (verification logs 730 d, audit log 1095 d), whether
    unregistered alumni may be surveyed/nudged/sent registration codes.
 2. LinkedIn departure (7.4): Registrar and ICT sign-off.

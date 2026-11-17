@@ -36,7 +36,7 @@ class VerificationServiceTest extends TestCase
         return AlumniProfile::factory()->pending()->create($attributes + [
             'user_id' => $user->id,
             'student_number' => null,
-            'declared_student_number' => 'SU/2020/050',
+            'declared_student_number' => '2001600050',
             'last_name' => 'Achieng',
         ]);
     }
@@ -76,7 +76,7 @@ class VerificationServiceTest extends TestCase
         $pending = $this->pending(['city' => 'Soroti', 'phone' => '+256700000001']);
         $userId = $pending->user_id;
         $job = EmploymentRecord::factory()->create(['alumni_profile_id' => $pending->id]);
-        $record = AlumniProfile::factory()->create(['student_number' => 'SU/2020/050', 'last_name' => 'Achieng-Okello', 'city' => null]);
+        $record = AlumniProfile::factory()->create(['student_number' => '2001600050', 'last_name' => 'Achieng-Okello', 'city' => null]);
 
         $linked = $this->service->linkToRecord($pending, $record, $this->staff);
 
@@ -84,7 +84,7 @@ class VerificationServiceTest extends TestCase
         $this->assertSame($userId, $linked->user_id);
         $this->assertSame(VerificationStatus::Verified, $linked->verification_status);
         $this->assertSame('Soroti', $linked->city);
-        $this->assertSame('SU/2020/050', $linked->student_number);
+        $this->assertSame('2001600050', $linked->student_number);
         $this->assertSame($record->id, $job->fresh()->alumni_profile_id, 'employment history follows the account');
         $this->assertNull(AlumniProfile::withTrashed()->find($pending->id), 'the self-declared shell is discarded');
         $this->assertSame($linked->id, User::find($userId)->alumniProfile->id);
@@ -110,8 +110,8 @@ class VerificationServiceTest extends TestCase
     public function test_candidates_are_unclaimed_records_sharing_the_surname_or_claimed_number(): void
     {
         $pending = $this->pending();
-        $bySurname = AlumniProfile::factory()->create(['last_name' => 'Achieng', 'student_number' => 'SU/2019/001']);
-        $byNumber = AlumniProfile::factory()->create(['last_name' => 'Different', 'student_number' => 'SU/2020/050']);
+        $bySurname = AlumniProfile::factory()->create(['last_name' => 'Achieng', 'student_number' => '1901600001']);
+        $byNumber = AlumniProfile::factory()->create(['last_name' => 'Different', 'student_number' => '2001600050']);
         AlumniProfile::factory()->create(['last_name' => 'Unrelated']);
         AlumniProfile::factory()->claimedBy(User::factory()->alumnus()->create())->create(['last_name' => 'Achieng']);
 

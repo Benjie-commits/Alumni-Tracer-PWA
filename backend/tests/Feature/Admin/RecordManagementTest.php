@@ -21,7 +21,7 @@ class RecordManagementTest extends AdminTestCase
 
         Livewire::actingAs($this->registrar())->test(AlumniDetail::class, ['profile' => $profile])
             ->set('form.last_name', 'Okello')
-            ->set('form.student_number', ' su/2021/014 ')
+            ->set('form.student_number', ' 21-01600-014 ')
             ->set('form.phone', '+256700111222')
             ->call('save')
             ->assertHasNoErrors()
@@ -29,7 +29,7 @@ class RecordManagementTest extends AdminTestCase
 
         $profile->refresh();
         $this->assertSame('Okello', $profile->last_name);
-        $this->assertSame('SU/2021/014', $profile->student_number);
+        $this->assertSame('2101600014', $profile->student_number);
         $this->assertNull($profile->profile_updated_at, 'staff edits must not look like alumnus confirmation');
     }
 
@@ -84,11 +84,11 @@ class RecordManagementTest extends AdminTestCase
 
     public function test_edits_are_validated_including_student_number_uniqueness(): void
     {
-        $this->profile(['student_number' => 'SU/2021/001']);
-        $profile = $this->profile(['student_number' => 'SU/2021/002']);
+        $this->profile(['student_number' => '2101600001']);
+        $profile = $this->profile(['student_number' => '2101600002']);
 
         Livewire::actingAs($this->registrar())->test(AlumniDetail::class, ['profile' => $profile])
-            ->set('form.student_number', 'SU/2021/001')
+            ->set('form.student_number', '2101600001')
             ->set('form.first_name', '')
             ->set('form.phone', 'not a phone')
             ->call('save')
@@ -97,7 +97,7 @@ class RecordManagementTest extends AdminTestCase
 
     public function test_a_record_can_keep_its_own_student_number(): void
     {
-        $profile = $this->profile(['student_number' => 'SU/2021/002']);
+        $profile = $this->profile(['student_number' => '2101600002']);
 
         Livewire::actingAs($this->registrar())->test(AlumniDetail::class, ['profile' => $profile])
             ->set('form.city', 'Soroti')
@@ -150,11 +150,11 @@ class RecordManagementTest extends AdminTestCase
     public function test_linking_a_claim_to_a_registrar_record(): void
     {
         $claim = $this->pendingClaim(['last_name' => 'Achieng']);
-        $record = $this->profile(['student_number' => 'SU/2020/050', 'last_name' => 'Achieng']);
+        $record = $this->profile(['student_number' => '2001600050', 'last_name' => 'Achieng']);
         $userId = $claim->user_id;
 
         Livewire::actingAs($this->registrar())->test(VerificationQueue::class)
-            ->assertSee('SU/2020/050')
+            ->assertSee('2001600050')
             ->call('link', $claim->id, $record->id)
             ->assertSee('Linked');
 
@@ -183,7 +183,7 @@ class RecordManagementTest extends AdminTestCase
     public function test_import_preview_saves_nothing_and_commit_saves(): void
     {
         $csv = UploadedFile::fake()->createWithContent('graduates.csv',
-            "Student number,First name,Surname,Programme,School,Graduation year\nSU/2021/001,Amina,Okello,BSc Biology,School of Science,2024\n");
+            "Student number,First name,Surname,Programme,School,Graduation year\n2101600001,Amina,Okello,BSc Biology,School of Science,2024\n");
 
         $page = Livewire::actingAs($this->registrar())->test(ImportAlumni::class)
             ->set('file', $csv)
@@ -197,7 +197,7 @@ class RecordManagementTest extends AdminTestCase
 
         $page->call('commit')->assertSet('report.dry_run', false)->assertSet('report.created', 1);
 
-        $this->assertSame(1, AlumniProfile::where('student_number', 'SU/2021/001')->count());
+        $this->assertSame(1, AlumniProfile::where('student_number', '2101600001')->count());
     }
 
     public function test_import_rejects_files_without_the_required_columns(): void
@@ -281,7 +281,7 @@ class RecordManagementTest extends AdminTestCase
         return AlumniProfile::factory()->pending()->create($attributes + [
             'user_id' => $user->id,
             'student_number' => null,
-            'declared_student_number' => 'SU/2020/050',
+            'declared_student_number' => '2001600050',
             'first_name' => 'Grace',
             'last_name' => 'Achieng',
         ]);

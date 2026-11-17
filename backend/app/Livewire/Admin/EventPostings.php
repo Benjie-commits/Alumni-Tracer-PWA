@@ -136,7 +136,11 @@ class EventPostings extends Component
         $this->authorizeManager();
 
         return view('livewire.admin.event-postings', [
-            'postings' => EventPosting::query()->with(['school', 'department', 'programme'])->orderByDesc('starts_at')->paginate(20),
+            'postings' => EventPosting::query()->with(['school', 'department', 'programme'])
+                ->withCount([
+                    'rsvps as going_count' => fn ($q) => $q->where('response', 'going'),
+                    'rsvps as maybe_count' => fn ($q) => $q->where('response', 'maybe'),
+                ])->orderByDesc('starts_at')->paginate(20),
             'tz' => config('sunates.timezone'),
             ...$this->audienceOptions(),
         ]);

@@ -95,7 +95,7 @@ abstract class Phase4TestCase extends TestCase
     protected function erpRecord(array $overrides = []): array
     {
         return $overrides + [
-            'student_number' => 'SU/2026/001',
+            'student_number' => '2601600001',
             'first_name' => 'Amina',
             'last_name' => 'Okello',
             'other_names' => null,

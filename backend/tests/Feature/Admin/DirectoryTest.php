@@ -19,12 +19,12 @@ class DirectoryTest extends AdminTestCase
 
     public function test_search_finds_by_name_and_student_number(): void
     {
-        $this->profile(['first_name' => 'Amina', 'last_name' => 'Okello', 'student_number' => 'SU/2021/001']);
-        $this->profile(['first_name' => 'Peter', 'last_name' => 'Ojok', 'student_number' => 'SU/2021/002']);
+        $this->profile(['first_name' => 'Amina', 'last_name' => 'Okello', 'student_number' => '2101600001']);
+        $this->profile(['first_name' => 'Peter', 'last_name' => 'Ojok', 'student_number' => '2101600002']);
 
         Livewire::actingAs($this->registrar())->test(AlumniDirectory::class)
             ->set('search', 'okello')->assertSee('Okello')->assertDontSee('Ojok')
-            ->set('search', 'SU/2021/002')->assertSee('Ojok')->assertDontSee('Okello');
+            ->set('search', '2101600002')->assertSee('Ojok')->assertDontSee('Okello');
     }
 
     public function test_search_treats_percent_and_underscore_literally(): void

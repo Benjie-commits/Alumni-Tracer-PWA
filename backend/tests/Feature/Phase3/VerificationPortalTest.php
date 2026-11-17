@@ -59,11 +59,11 @@ class VerificationPortalTest extends Phase3TestCase
 
     public function test_the_portal_reveals_no_more_than_the_api(): void
     {
-        $this->graduate(['student_number' => 'SU/2020/123', 'email' => 'private@example.com', 'phone' => '0700 555 111', 'class_of_award' => 'First Class']);
+        $this->graduate(['student_number' => '2001600123', 'email' => 'private@example.com', 'phone' => '0700 555 111', 'class_of_award' => 'First Class']);
 
         $page = $this->check();
 
-        foreach (['SU/2020/123', 'private@example.com', '555 111', 'First Class'] as $secret) {
+        foreach (['2001600123', 'private@example.com', '555 111', 'First Class'] as $secret) {
             $page->assertDontSee($secret);
         }
 

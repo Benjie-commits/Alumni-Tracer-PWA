@@ -128,7 +128,7 @@ class ErpConsoleTest extends Phase4TestCase
     public function test_the_queued_job_does_the_sync_and_the_page_then_shows_the_result(): void
     {
         $this->useRestErp();
-        $this->fakeErp([$this->erpRecord(), $this->erpRecord(['student_number' => 'SU/2026/002', 'last_name' => 'Ojok'])]);
+        $this->fakeErp([$this->erpRecord(), $this->erpRecord(['student_number' => '2601600002', 'last_name' => 'Ojok'])]);
 
         // The test queue runs jobs inline, which is what a worker does a moment later in real life.
         $page = Livewire::actingAs($this->ict())->test(ErpSync::class)->call('syncNow');
@@ -225,19 +225,19 @@ class ErpConsoleTest extends Phase4TestCase
         $this->useRestErp();
         $run = ErpSyncRun::create([
             'driver' => 'rest', 'trigger' => 'cli', 'status' => ErpSyncStatus::Succeeded, 'fetched' => 2, 'created' => 1, 'rejected' => 1,
-            'report' => ['errors' => [['row' => 2, 'message' => 'SU/2026/009: Missing last name.']], 'warnings' => [['row' => 1, 'message' => 'SU/2026/001: Programme has no school']]],
+            'report' => ['errors' => [['row' => 2, 'message' => '2601600009: Missing last name.']], 'warnings' => [['row' => 1, 'message' => '2601600001: Programme has no school']]],
             'started_at' => now(), 'finished_at' => now(),
         ]);
 
         $page = Livewire::actingAs($this->registrar())->test(ErpSync::class)
             ->assertSee('Finished with problems')
-            ->assertDontSee('SU/2026/009: Missing last name.');
+            ->assertDontSee('2601600009: Missing last name.');
 
         $page->call('toggle', $run->id)
-            ->assertSee('SU/2026/009: Missing last name.')
-            ->assertSee('SU/2026/001: Programme has no school')
+            ->assertSee('2601600009: Missing last name.')
+            ->assertSee('2601600001: Programme has no school')
             ->call('toggle', $run->id)
-            ->assertDontSee('SU/2026/009: Missing last name.');
+            ->assertDontSee('2601600009: Missing last name.');
     }
 
     public function test_a_run_with_no_report_does_not_break_the_page(): void

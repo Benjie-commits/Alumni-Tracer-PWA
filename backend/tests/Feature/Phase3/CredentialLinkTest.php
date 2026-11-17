@@ -32,7 +32,7 @@ class CredentialLinkTest extends Phase3TestCase
 
     public function test_an_employer_opening_the_link_sees_who_graduated_with_what_and_when(): void
     {
-        $profile = $this->graduate(['first_name' => 'Amina', 'last_name' => 'Okello', 'student_number' => 'SU/2020/777', 'email' => 'private@example.com']);
+        $profile = $this->graduate(['first_name' => 'Amina', 'last_name' => 'Okello', 'student_number' => '2001600777', 'email' => 'private@example.com']);
         $user = $this->alumnusAccount($profile);
         $link = app(CredentialLinkService::class)->issue($profile);
 
@@ -42,7 +42,7 @@ class CredentialLinkTest extends Phase3TestCase
             ->assertSee('BSc Biology')
             ->assertSee('2024')
             ->assertSee('Verified')
-            ->assertDontSee('SU/2020/777')
+            ->assertDontSee('2001600777')
             ->assertDontSee('private@example.com');
     }
 

@@ -138,6 +138,14 @@ return [
             'updated_at' => null,
         ], (array) json_decode((string) env('ERP_FIELD_MAP', '[]'), true)),
 
+        // The other direction: an endpoint the ERP calls to push graduates when it is ready (POST /api/v1/erp/graduates).
+        // It exists only while a token is set. Make one with `php artisan sunates:erp-token`.
+        'inbound' => [
+            'token' => env('ERP_INBOUND_TOKEN'),
+            // Most graduates one request may carry; bigger lists are sent in batches.
+            'max_batch' => (int) env('ERP_INBOUND_MAX_BATCH', 500),
+        ],
+
         'rest' => [
             'base_url' => env('ERP_REST_BASE_URL'),
             'path' => env('ERP_REST_PATH', '/api/graduates'),

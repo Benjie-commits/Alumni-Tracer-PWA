@@ -47,6 +47,8 @@ return [
         'sender' => env('MTN_SMS_SENDER'),
         // Free-text label MTN echoes back; identifies this application in their logs.
         'client_ref' => env('MTN_SMS_CLIENT_REF', 'sunates'),
+        // Secret that forms the callback URL: https://<domain>/api/webhooks/mtn-sms/<this>. Unset = endpoint off.
+        'callback_secret' => env('MTN_SMS_CALLBACK_SECRET'),
     ],
 
     // WhatsApp Business Platform, Cloud API (spec section 7.3).

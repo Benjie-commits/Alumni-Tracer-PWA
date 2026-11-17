@@ -27,6 +27,17 @@
                     @endif
                 </div>
             </div>
+            <div>
+                <div class="muted small">Endpoint for the ERP to push to</div>
+                @if ($inbound)
+                    <div><span class="pill verified">On</span> <code>{{ $inboundUrl }}</code></div>
+                    <div class="muted small">
+                        @if ($lastPush) Last used {{ $lastPush->created_at->timezone(config('sunates.timezone'))->diffForHumans() }} @else Not used yet @endif
+                    </div>
+                @else
+                    <div><span class="pill">Off</span> <span class="muted small">no key has been made for the ERP yet</span></div>
+                @endif
+            </div>
             @if ($enabled)
                 <div>
                     <div class="muted small">Runs automatically</div>
@@ -48,7 +59,7 @@
         @unless ($enabled)
             <p class="muted small" style="margin-bottom:0">
                 Until SorotiUniERP is in active use, alumni come from the Registrar's spreadsheets (<a href="{{ route('admin.import') }}">Import from spreadsheet</a>).
-                To switch this on, the Directorate of ICT sets <code>ERP_DRIVER</code> to <code>rest</code> or <code>database</code> and fills in the matching settings in the server's <code>.env</code> file; the README lists every setting.
+                To connect it, the Directorate of ICT either gives the ERP team a key to push graduates to the endpoint above (<code>php artisan sunates:erp-token</code>), or sets <code>ERP_DRIVER</code> to <code>rest</code> or <code>database</code> so this system reads the ERP itself. The README lists every setting.
             </p>
         @endunless
     </div>
@@ -93,12 +104,14 @@
                     <tr wire:key="run{{ $run->id }}">
                         <td style="white-space:nowrap">
                             {{ $run->created_at->timezone(config('sunates.timezone'))->format('j M, H:i') }}
-                            <div class="muted small">{{ $run->trigger === 'scheduled' ? 'automatic' : ($run->starter?->name ?? 'command line') }}</div>
+                            <div class="muted small">{{ match ($run->trigger) { 'scheduled' => 'automatic', 'api' => 'pushed by the ERP', default => $run->starter?->name ?? 'command line' } }}</div>
                         </td>
                         <td>
                             {{ $run->dry_run ? 'Preview' : 'Live' }}
                             <div class="muted small">
-                                @if ($run->full)
+                                @if ($run->driver === 'inbound')
+                                    what the ERP chose to send
+                                @elseif ($run->full)
                                     everything, as asked
                                 @elseif ($run->since)
                                     changes since {{ $run->since->timezone(config('sunates.timezone'))->format('j M, H:i') }}

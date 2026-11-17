@@ -38,8 +38,8 @@ class ErpSyncServiceTest extends Phase4TestCase
         $this->useRestErp();
         $this->fakeErp([
             $this->erpRecord(),
-            $this->erpRecord(['student_number' => 'SU/2026/002', 'first_name' => 'Peter', 'last_name' => 'Ojok', 'programme' => 'BSc Chemistry']),
-            $this->erpRecord(['student_number' => 'SU/2026/003', 'first_name' => 'Grace', 'last_name' => 'Achieng']),
+            $this->erpRecord(['student_number' => '2601600002', 'first_name' => 'Peter', 'last_name' => 'Ojok', 'programme' => 'BSc Chemistry']),
+            $this->erpRecord(['student_number' => '2601600003', 'first_name' => 'Grace', 'last_name' => 'Achieng']),
         ]);
 
         $run = $this->sync();
@@ -49,7 +49,7 @@ class ErpSyncServiceTest extends Phase4TestCase
         $this->assertSame(3, $run->created);
         $this->assertSame(3, AlumniProfile::count());
 
-        $amina = AlumniProfile::where('student_number', 'SU/2026/001')->first();
+        $amina = AlumniProfile::where('student_number', '2601600001')->first();
         $this->assertSame(RecordSource::Erp, $amina->record_source);
         $this->assertSame(VerificationStatus::Unclaimed, $amina->verification_status);
         $this->assertNull($amina->user_id, 'nobody is signed up on their behalf; they claim it themselves');
@@ -79,7 +79,7 @@ class ErpSyncServiceTest extends Phase4TestCase
         $this->useRestErp();
         $user = User::factory()->alumnus()->create();
         $profile = $this->graduate([
-            'student_number' => 'SU/2026/001', 'last_name' => 'Okelo', 'class_of_award' => null,
+            'student_number' => '2601600001', 'last_name' => 'Okelo', 'class_of_award' => null,
             'email' => 'chosen@by-alumnus.test', 'phone' => '+256700999888',
             'user_id' => $user->id, 'verification_status' => VerificationStatus::Verified,
             'record_source' => RecordSource::RegistrarImport,
@@ -102,7 +102,7 @@ class ErpSyncServiceTest extends Phase4TestCase
     public function test_a_blank_erp_field_never_erases_what_we_hold(): void
     {
         $this->useRestErp();
-        $profile = $this->graduate(['student_number' => 'SU/2026/001', 'class_of_award' => 'First Class', 'gender' => 'female']);
+        $profile = $this->graduate(['student_number' => '2601600001', 'class_of_award' => 'First Class', 'gender' => 'female']);
         $this->fakeErp([$this->erpRecord(['class_of_award' => null, 'gender' => '', 'graduation_date' => null, 'graduation_year' => null])]);
 
         $this->sync();
@@ -116,7 +116,7 @@ class ErpSyncServiceTest extends Phase4TestCase
     public function test_running_the_same_feed_twice_changes_nothing_the_second_time(): void
     {
         $this->useRestErp();
-        $this->fakeErp([$this->erpRecord(), $this->erpRecord(['student_number' => 'SU/2026/002', 'last_name' => 'Ojok'])]);
+        $this->fakeErp([$this->erpRecord(), $this->erpRecord(['student_number' => '2601600002', 'last_name' => 'Ojok'])]);
 
         $this->sync();
         $second = $this->sync();
@@ -132,8 +132,8 @@ class ErpSyncServiceTest extends Phase4TestCase
         $this->useRestErp(['fields' => array_replace(config('sunates.erp.fields'), ['status' => 'status'])]);
         $this->fakeErp([
             $this->erpRecord(['status' => 'Graduated']),
-            $this->erpRecord(['student_number' => 'SU/2027/050', 'status' => 'Enrolled']),
-            $this->erpRecord(['student_number' => 'SU/2027/051', 'status' => 'Suspended']),
+            $this->erpRecord(['student_number' => '2701600050', 'status' => 'Enrolled']),
+            $this->erpRecord(['student_number' => '2701600051', 'status' => 'Suspended']),
         ]);
 
         $run = $this->sync();
@@ -141,7 +141,7 @@ class ErpSyncServiceTest extends Phase4TestCase
         $this->assertSame(3, $run->fetched);
         $this->assertSame(1, $run->created);
         $this->assertSame(2, $run->not_graduated);
-        $this->assertFalse(AlumniProfile::where('student_number', 'SU/2027/050')->exists());
+        $this->assertFalse(AlumniProfile::where('student_number', '2701600050')->exists());
     }
 
     public function test_a_record_that_cannot_be_used_is_turned_away_by_name_and_the_rest_still_go_in(): void
@@ -149,8 +149,8 @@ class ErpSyncServiceTest extends Phase4TestCase
         $this->useRestErp();
         $this->fakeErp([
             $this->erpRecord(),
-            $this->erpRecord(['student_number' => 'SU/2026/009', 'last_name' => '']),
-            $this->erpRecord(['student_number' => 'SU/2026/010', 'graduation_year' => '20x6']),
+            $this->erpRecord(['student_number' => '2601600009', 'last_name' => '']),
+            $this->erpRecord(['student_number' => '2601600010', 'graduation_year' => '20x6']),
         ]);
 
         $run = $this->sync();
@@ -159,14 +159,14 @@ class ErpSyncServiceTest extends Phase4TestCase
         $this->assertSame(1, $run->created);
         $this->assertSame(2, $run->rejected);
         $messages = array_column($run->report['errors'], 'message');
-        $this->assertContains('SU/2026/009: Missing last name.', $messages, 'says which student, not just "row 2"');
-        $this->assertContains("SU/2026/010: Invalid graduation year '20x6'.", $messages);
+        $this->assertContains('2601600009: Missing last name.', $messages, 'says which student, not just "row 2"');
+        $this->assertContains("2601600010: Invalid graduation year '20x6'.", $messages);
     }
 
     public function test_a_deleted_record_is_not_silently_brought_back(): void
     {
         $this->useRestErp();
-        $gone = $this->graduate(['student_number' => 'SU/2026/001']);
+        $gone = $this->graduate(['student_number' => '2601600001']);
         $gone->delete();
         $this->fakeErp([$this->erpRecord()]);
 
@@ -183,7 +183,7 @@ class ErpSyncServiceTest extends Phase4TestCase
     public function test_a_preview_reports_the_changes_and_saves_nothing(): void
     {
         $this->useRestErp();
-        $this->fakeErp([$this->erpRecord(), $this->erpRecord(['student_number' => 'SU/2026/002'])]);
+        $this->fakeErp([$this->erpRecord(), $this->erpRecord(['student_number' => '2601600002'])]);
 
         $run = $this->sync(dryRun: true);
 
@@ -202,7 +202,7 @@ class ErpSyncServiceTest extends Phase4TestCase
         $this->useRestErp(['fields' => array_replace(config('sunates.erp.fields'), ['updated_at' => 'modified'])]);
         $this->fakeErp([
             $this->erpRecord(['modified' => '2026-10-01T08:00:00+03:00']),
-            $this->erpRecord(['student_number' => 'SU/2026/002', 'modified' => '2026-10-03T16:30:00+03:00']),
+            $this->erpRecord(['student_number' => '2601600002', 'modified' => '2026-10-03T16:30:00+03:00']),
         ]);
 
         $first = $this->sync();
@@ -237,7 +237,7 @@ class ErpSyncServiceTest extends Phase4TestCase
         $this->useRestErp(['fields' => array_replace(config('sunates.erp.fields'), ['updated_at' => 'modified'])]);
         $this->fakeErp([
             $this->erpRecord(['modified' => '2026-10-01T08:00:00+03:00']),
-            $this->erpRecord(['student_number' => 'SU/2026/009', 'last_name' => '', 'modified' => '2026-10-03T08:00:00+03:00']),
+            $this->erpRecord(['student_number' => '2601600009', 'last_name' => '', 'modified' => '2026-10-03T08:00:00+03:00']),
         ]);
 
         $run = $this->sync();
@@ -265,7 +265,7 @@ class ErpSyncServiceTest extends Phase4TestCase
         $page = 0;
         Http::fake(function () use (&$page) {
             return ++$page === 1
-                ? Http::response(['data' => [$this->erpRecord(), $this->erpRecord(['student_number' => 'SU/2026/002'])]])
+                ? Http::response(['data' => [$this->erpRecord(), $this->erpRecord(['student_number' => '2601600002'])]])
                 : Http::response('boom', 503);
         });
 
@@ -308,7 +308,7 @@ class ErpSyncServiceTest extends Phase4TestCase
     public function test_a_feed_far_bigger_than_any_graduating_class_is_refused(): void
     {
         $this->useRestErp(['max_records' => 3]);
-        $this->fakeErp(array_map(fn ($i) => $this->erpRecord(['student_number' => "SU/2026/{$i}"]), range(1, 5)));
+        $this->fakeErp(array_map(fn ($i) => $this->erpRecord(['student_number' => sprintf("2601600%03d", $i)]), range(1, 5)));
 
         $run = $this->sync();
 
@@ -441,7 +441,7 @@ class ErpSyncServiceTest extends Phase4TestCase
     {
         $this->useRestErp();
         $stamp = Carbon::parse('2026-03-01 06:00', 'UTC');
-        $profile = $this->graduate(['student_number' => 'SU/2026/001', 'profile_updated_at' => $stamp, 'last_survey_completed_at' => $stamp]);
+        $profile = $this->graduate(['student_number' => '2601600001', 'profile_updated_at' => $stamp, 'last_survey_completed_at' => $stamp]);
         $this->fakeErp([$this->erpRecord(['last_name' => 'Okello-Corrected'])]);
 
         $this->sync();

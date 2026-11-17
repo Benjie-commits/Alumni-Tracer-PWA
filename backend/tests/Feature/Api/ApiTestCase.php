@@ -38,7 +38,7 @@ abstract class ApiTestCase extends TestCase
     protected function importedRecord(array $overrides = []): AlumniProfile
     {
         return AlumniProfile::factory()->create($overrides + [
-            'student_number' => 'SU/2021/014',
+            'student_number' => '2101600014',
             'first_name' => 'Amina',
             'last_name' => 'Okello',
             'graduation_year' => 2024,
@@ -51,7 +51,7 @@ abstract class ApiTestCase extends TestCase
     protected function registrationPayload(array $overrides = []): array
     {
         return $overrides + [
-            'student_number' => 'SU/2021/014',
+            'student_number' => '2101600014',
             'first_name' => 'Amina',
             'last_name' => 'Okello',
             'graduation_year' => 2024,

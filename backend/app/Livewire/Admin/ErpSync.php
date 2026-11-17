@@ -105,6 +105,9 @@ class ErpSync extends Component
             'runs' => ErpSyncRun::query()->with('starter:id,name')->latest('id')->limit(15)->get(),
             'busy' => ErpSyncRun::active()->exists(),
             'last' => ErpSyncRun::lastSuccessful(),
+            'inbound' => ErpSyncService::inboundEnabled(),
+            'inboundUrl' => url('/api/v1/erp/graduates'),
+            'lastPush' => ErpSyncRun::query()->where('driver', 'inbound')->latest('id')->first(),
         ]);
     }
 

@@ -34,7 +34,7 @@ class VerificationLookupTest extends Phase3TestCase
     public function test_nothing_else_about_the_graduate_is_ever_returned(): void
     {
         $this->graduate([
-            'student_number' => 'SU/2020/123', 'email' => 'private@example.com', 'phone' => '+256700555111', 'whatsapp_number' => '+256700555222',
+            'student_number' => '2001600123', 'email' => 'private@example.com', 'phone' => '+256700555111', 'whatsapp_number' => '+256700555222',
             'date_of_birth' => '1999-04-02', 'class_of_award' => 'First Class', 'city' => 'Gulu', 'other_names' => 'Grace',
             'employment_status' => 'employed',
         ]);
@@ -43,7 +43,7 @@ class VerificationLookupTest extends Phase3TestCase
         $body = $response->getContent();
 
         $this->assertSame(['result', 'reference', 'message', 'programme', 'graduation_year'], array_keys($response->json('data')));
-        foreach (['SU/2020/123', 'private@example.com', '555111', '555222', '1999', 'First Class', 'Gulu', 'Grace', 'School of Science', 'Department of Biology', 'Okello', 'Amina'] as $secret) {
+        foreach (['2001600123', 'private@example.com', '555111', '555222', '1999', 'First Class', 'Gulu', 'Grace', 'School of Science', 'Department of Biology', 'Okello', 'Amina'] as $secret) {
             $this->assertStringNotContainsString($secret, $body, "the verification answer must not reveal {$secret}");
         }
     }
@@ -163,7 +163,7 @@ class VerificationLookupTest extends Phase3TestCase
             ['verification_status' => VerificationStatus::Pending],
             ['verification_status' => VerificationStatus::Rejected],
             // Approved by staff as a new alumnus but never in the Registrar's graduate list: no student number.
-            ['verification_status' => VerificationStatus::Verified, 'student_number' => null, 'declared_student_number' => 'SU/2020/050'],
+            ['verification_status' => VerificationStatus::Verified, 'student_number' => null, 'declared_student_number' => '2001600050'],
         ] as $attributes) {
             $this->graduate($attributes);
         }
@@ -200,15 +200,15 @@ class VerificationLookupTest extends Phase3TestCase
 
     public function test_two_people_with_the_same_name_are_never_listed_just_reported_as_ambiguous(): void
     {
-        $a = $this->graduate(['student_number' => 'SU/2020/001', 'email' => 'first@example.com']);
-        $b = $this->graduate(['student_number' => 'SU/2020/002', 'email' => 'second@example.com', 'programme_id' => $this->programme('BA History')->id, 'graduation_year' => 2022, 'graduation_date' => '2022-07-01']);
+        $a = $this->graduate(['student_number' => '2001600001', 'email' => 'first@example.com']);
+        $b = $this->graduate(['student_number' => '2001600002', 'email' => 'second@example.com', 'programme_id' => $this->programme('BA History')->id, 'graduation_year' => 2022, 'graduation_date' => '2022-07-01']);
 
         $response = $this->ask($this->lookup())->assertOk();
 
         $response->assertJsonPath('data.result', 'ambiguous')->assertJsonPath('data.can_narrow', true);
         $response->assertJsonMissingPath('data.programme');
         $body = $response->getContent();
-        foreach (['SU/2020/001', 'SU/2020/002', 'first@example.com', 'BA History', 'BSc Biology', '2022', '2024'] as $leak) {
+        foreach (['2001600001', '2001600002', 'first@example.com', 'BA History', 'BSc Biology', '2022', '2024'] as $leak) {
             $this->assertStringNotContainsString($leak, $body, "an ambiguous answer must not describe either graduate ({$leak})");
         }
         $this->assertNull(CredentialVerificationRequest::first()->matched_profile_id);

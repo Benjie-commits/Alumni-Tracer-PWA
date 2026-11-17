@@ -37,7 +37,7 @@
 
     <div class="panel">
         <table>
-            <thead><tr><th>Event</th><th>When</th><th>Where</th><th>Aimed at</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Event</th><th>When</th><th>Where</th><th>Aimed at</th><th>Coming</th><th>Status</th><th></th></tr></thead>
             <tbody>
             @forelse ($postings as $posting)
                 <tr wire:key="e{{ $posting->id }}">
@@ -45,6 +45,7 @@
                     <td class="small" style="white-space:nowrap">{{ $posting->starts_at->copy()->setTimezone($tz)->format('j M Y, H:i') }}</td>
                     <td class="small">{{ $posting->venue ?? '' }}{{ $posting->venue && $posting->online_url ? ' · ' : '' }}{{ $posting->online_url ? 'Online' : '' }}</td>
                     <td class="small">{{ $posting->audienceLabel() }}</td>
+                    <td class="small">{{ $posting->going_count }} going{{ $posting->maybe_count ? ', '.$posting->maybe_count.' maybe' : '' }}</td>
                     <td>
                         @if (! $posting->published_at)
                             <span class="pill">Draft</span>
@@ -61,7 +62,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="empty">No events yet.</td></tr>
+                <tr><td colspan="7" class="empty">No events yet.</td></tr>
             @endforelse
             </tbody>
         </table>

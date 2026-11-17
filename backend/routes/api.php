@@ -3,6 +3,7 @@
 use App\Enums\RoleSlug;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CredentialLinkController;
+use App\Http\Controllers\Api\V1\ErpIngestController;
 use App\Http\Controllers\Api\V1\EmploymentRecordController;
 use App\Http\Controllers\Api\V1\MentoringController;
 use App\Http\Controllers\Api\V1\MySurveysController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Api\V1\ReferenceDataController;
 use App\Http\Controllers\Api\V1\StudentController;
 use App\Http\Controllers\Api\V1\SurveyController;
 use App\Http\Controllers\Api\V1\VerificationController;
+use App\Http\Controllers\Api\MtnSmsWebhookController;
 use App\Http\Controllers\Api\WhatsAppWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -37,6 +39,13 @@ Route::prefix('v1')->group(function () {
     // answers with graduation status, programme and year only.
     Route::post('verification/lookup', [VerificationController::class, 'lookup'])->middleware('throttle:verification');
 
+    // SorotiUniERP pushes graduating students here when it is ready (FR-9, spec 7.1). Dormant (404) until
+    // ERP_INBOUND_TOKEN is set; then only the holder of that key can use it.
+    Route::prefix('erp')->middleware(['erp.token', 'throttle:erp-inbound'])->group(function () {
+        Route::get('status', [ErpIngestController::class, 'status']);
+        Route::post('graduates', [ErpIngestController::class, 'graduates']);
+    });
+
     // The survey behind a link sent by SMS/WhatsApp: the unguessable token is the credential (FR-3).
     Route::middleware('throttle:survey')->group(function () {
         Route::get('surveys/{token}', [SurveyController::class, 'show']);
@@ -52,6 +61,8 @@ Route::prefix('v1')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::get('me/jobs', [OpportunityController::class, 'jobs']);
         Route::get('me/events', [OpportunityController::class, 'events']);
+        Route::put('me/events/{event}/rsvp', [OpportunityController::class, 'rsvp'])->whereNumber('event');
+        Route::delete('me/events/{event}/rsvp', [OpportunityController::class, 'cancelRsvp'])->whereNumber('event');
     });
 
     // Students only: ask for an alumni mentor and see who it is once staff match them.
@@ -88,4 +99,6 @@ Route::prefix('v1')->group(function () {
 Route::prefix('webhooks')->middleware('throttle:webhook')->group(function () {
     Route::get('whatsapp', [WhatsAppWebhookController::class, 'verify']);
     Route::post('whatsapp', [WhatsAppWebhookController::class, 'receive']);
+    // MTN SMS delivery receipts and replies: the secret in the URL is the credential (404 while unset).
+    Route::post('mtn-sms/{secret}', [MtnSmsWebhookController::class, 'receive']);
 });

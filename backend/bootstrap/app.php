@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureErpToken;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => EnsureRole::class,
+            'erp.token' => EnsureErpToken::class,
             'password.changed' => \App\Http\Middleware\EnsurePasswordChanged::class,
         ]);
 

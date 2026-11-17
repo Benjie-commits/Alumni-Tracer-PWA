@@ -33,6 +33,8 @@
         <env name="ERP_DRIVER" value="none"/>
         <env name="ERP_FIELD_MAP" value="[]"/>
         <env name="ERP_SYNC_AT" value="02:30"/>
+        <env name="ERP_INBOUND_TOKEN" value=""/>
+        <env name="ERP_INBOUND_MAX_BATCH" value="500"/>
         <env name="ERP_MAX_RECORDS" value="100000"/>
         <env name="ERP_REST_BASE_URL" value=""/>
         <env name="ERP_REST_PATH" value="/api/graduates"/>

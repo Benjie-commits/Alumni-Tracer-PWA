@@ -22,6 +22,32 @@ const safeUrl = (value) => {
   }
 }
 
+const rsvpError = ref('')
+const answers = [
+  { value: 'going', label: "I'm going" },
+  { value: 'maybe', label: 'Maybe' },
+  { value: 'no', label: "Can't make it" },
+]
+
+// Pressing the answer you already gave takes it back.
+async function answer(event, value) {
+  rsvpError.value = ''
+  try {
+    if (event.my_rsvp === value) {
+      await api.delete(`/me/events/${event.id}/rsvp`)
+      if (value === 'going') event.going_count -= 1
+      event.my_rsvp = null
+      return
+    }
+    const wasGoing = event.my_rsvp === 'going'
+    const result = await api.put(`/me/events/${event.id}/rsvp`, { response: value })
+    event.my_rsvp = result.data.my_rsvp
+    event.going_count = result.data.going_count ?? event.going_count + (value === 'going' ? 1 : 0) - (wasGoing ? 1 : 0)
+  } catch (e) {
+    rsvpError.value = e?.offline ? "You're offline. Reconnect to answer." : (e?.message || 'Your answer could not be saved.')
+  }
+}
+
 onMounted(async () => {
   const [j, e] = await Promise.allSettled([api.get('/me/jobs'), api.get('/me/events')])
   if (j.status === 'fulfilled') jobs.value = j.value.data
@@ -67,6 +93,7 @@ onMounted(async () => {
 
   <template v-else>
     <p v-if="!events.length" class="card muted">No upcoming events for you right now.</p>
+    <p v-if="rsvpError" class="alert bad" role="alert">{{ rsvpError }}</p>
     <article v-for="event in events" :key="event.id" class="card">
       <h2 style="margin-bottom:4px">{{ event.title }}</h2>
       <p class="hint small" style="margin-top:0">
@@ -76,6 +103,14 @@ onMounted(async () => {
       <p v-if="safeUrl(event.online_url)">
         <a :href="safeUrl(event.online_url)" target="_blank" rel="noopener noreferrer">Join online</a>
       </p>
+      <div class="actions" role="group" :aria-label="`Will you come to ${event.title}?`">
+        <button
+          v-for="a in answers" :key="a.value" type="button"
+          :class="{ secondary: event.my_rsvp !== a.value }" :aria-pressed="event.my_rsvp === a.value"
+          @click="answer(event, a.value)"
+        >{{ a.label }}</button>
+      </div>
+      <p v-if="event.going_count" class="hint small">{{ event.going_count }} {{ event.going_count === 1 ? 'person is' : 'people are' }} going.</p>
     </article>
   </template>
 </template>

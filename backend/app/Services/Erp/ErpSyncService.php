@@ -8,6 +8,7 @@ use App\Models\ErpSyncRun;
 use App\Models\User;
 use App\Services\Erp\Contracts\GraduateSource;
 use App\Services\Import\AlumniImportService;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Throwable;
@@ -15,10 +16,12 @@ use Throwable;
 /**
  * FR-9: a graduating student's ERP record becomes an alumni profile without anyone re-typing it.
  *
- * The ERP is read, each record is mapped to our columns, and the rows go through exactly the rules a
- * Registrar spreadsheet goes through (AlumniImportService): matched on student number, Registrar-owned
- * fields refreshed, an alumnus's own contact details never overwritten, nothing deleted. A run is
- * recorded whether it works or not, so ICT can see what last night's sync did.
+ * Records reach us two ways, and both end up in the same place. We can pull them from the ERP
+ * (execute), or the ERP can push them to the inbound endpoint (ingest). Either way each record is
+ * mapped to our columns and goes through exactly the rules a Registrar spreadsheet goes through
+ * (AlumniImportService): matched on student number, Registrar-owned fields refreshed, an alumnus's
+ * own contact details never overwritten, nothing deleted. A run is recorded whether it works or not,
+ * so ICT can see what happened.
  */
 class ErpSyncService
 {
@@ -30,13 +33,20 @@ class ErpSyncService
         private readonly AlumniImportService $import,
     ) {}
 
+    /** Is the pull side switched on (ERP_DRIVER is not "none")? */
     public function isEnabled(): bool
     {
         return config('sunates.erp.driver') !== 'none';
     }
 
+    /** Is the inbound endpoint switched on (a token is set)? It works whether or not pulling is. */
+    public static function inboundEnabled(): bool
+    {
+        return (string) config('sunates.erp.inbound.token') !== '';
+    }
+
     /**
-     * Register a run that is about to happen (by the scheduler, the command, or a queued job).
+     * Register a pull run that is about to happen (by the scheduler, the command, or a queued job).
      *
      * @throws ErpSourceException when the integration is switched off
      * @throws ErpSyncBusy when another run is still going
@@ -70,7 +80,7 @@ class ErpSyncService
             return $run; // already picked up (a duplicate job, or a run that was marked dead)
         }
 
-        $lock = Cache::lock(self::LOCK, (int) config('sunates.erp.stale_run_minutes') * 60);
+        $lock = $this->lock();
         if (! $lock->get()) {
             return $this->fail($run, 'Another sync was working at the same moment.');
         }
@@ -82,42 +92,56 @@ class ErpSyncService
             $run->since = $since;
 
             // The ERP is asked in Uganda time with an explicit offset, which reads the same on any server.
-            [$rows, $identities, $fetched, $notGraduated, $newest] = $this->read($since?->copy()->timezone(config('sunates.timezone')));
-
-            $report = $this->import->importRows($rows, $run->dry_run, RecordSource::Erp);
-
-            // Name the student on every problem: "row 412" means nothing to someone looking at the ERP.
-            $label = fn (array $items) => array_map(
-                fn (array $i) => ['row' => $i['row'], 'message' => ($identities[$i['row']] ?? 'unknown').': '.$i['message']],
-                $items
+            [$rows, $identities, $fetched, $notGraduated, $newest] = $this->collect(
+                $this->source->fetch($since?->copy()->timezone(config('sunates.timezone')))
             );
 
-            $run->forceFill([
-                'status' => ErpSyncStatus::Succeeded,
-                'fetched' => $fetched,
-                'not_graduated' => $notGraduated,
-                'created' => $report->created,
-                'updated' => $report->updated,
-                'unchanged' => $report->unchanged,
-                'rejected' => $report->skipped,
-                // The next sync starts where this one ended, but only if nothing was turned away: a
-                // record we rejected must be offered again next time, not skipped past for good.
-                'cursor' => ($run->dry_run || $report->skipped > 0) ? null : $newest,
-                'report' => [
-                    'errors' => $label($report->errors),
-                    'warnings' => $label($report->warnings),
-                    'reference_created' => $report->referenceCreated,
-                ],
-                'finished_at' => now(),
-            ])->save();
-
-            return $run;
+            return $this->finish($run, $rows, $identities, $fetched, $notGraduated, $newest);
         } catch (ErpSourceException $e) {
             return $this->fail($run, $e->getMessage());
         } catch (Throwable $e) {
             report($e);
 
             return $this->fail($run, 'The sync stopped on an unexpected error and saved nothing. ICT can find the details in the application log.');
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Records the ERP pushed to the inbound endpoint (spec section 7.1: the ERP chooses when). The same
+     * mapping and the same rules as a pull; it is recorded as a run too, but it does not touch the point
+     * a pull continues from, because the ERP decides what it sends and when.
+     *
+     * @param  list<array<string, mixed>>  $records  the ERP's own records, in the ERP's own field names (see the field map)
+     *
+     * @throws ErpSyncBusy when a pull is running; the ERP should retry shortly
+     */
+    public function ingest(array $records, bool $dryRun = false): ErpSyncRun
+    {
+        $this->failDeadRuns();
+
+        $lock = $this->lock();
+        if (ErpSyncRun::active()->exists() || ! $lock->get()) {
+            throw new ErpSyncBusy('A sync is running right now; try again in a minute.');
+        }
+
+        $run = ErpSyncRun::create([
+            'driver' => 'inbound',
+            'trigger' => 'api',
+            'dry_run' => $dryRun,
+            'status' => ErpSyncStatus::Running,
+            'started_at' => now(),
+        ]);
+
+        try {
+            [$rows, $identities, $fetched, $notGraduated] = $this->collect($records);
+
+            return $this->finish($run, $rows, $identities, $fetched, $notGraduated, null);
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->fail($run, 'The records could not be saved because of an unexpected error. Nothing was saved.');
         } finally {
             $lock->release();
         }
@@ -149,12 +173,13 @@ class ErpSyncService
     }
 
     /**
-     * Read the whole feed before touching our database, so a failure half-way through the ERP's pages
+     * Map the whole feed before touching our database, so a failure half-way through the ERP's pages
      * saves nothing and no transaction stays open while we wait on the network.
      *
+     * @param  iterable<int, mixed>  $records
      * @return array{0: array<int, array<string, string>>, 1: array<int, string>, 2: int, 3: int, 4: ?Carbon}
      */
-    private function read(?Carbon $since): array
+    private function collect(iterable $records): array
     {
         $max = (int) config('sunates.erp.max_records');
         $rows = [];
@@ -163,9 +188,13 @@ class ErpSyncService
         $notGraduated = 0;
         $newest = null;
 
-        foreach ($this->source->fetch($since) as $record) {
+        foreach ($records as $record) {
             if (++$fetched > $max) {
                 throw new ErpSourceException("The ERP sent more than {$max} records. That is almost certainly a missing filter or a paging fault, so nothing was saved.");
+            }
+
+            if (! is_array($record)) {
+                continue;
             }
 
             if (($changed = $this->mapper->changedAt($record)) !== null && ($newest === null || $changed->gt($newest))) {
@@ -192,6 +221,58 @@ class ErpSyncService
         }
 
         return [$rows, $identities, $fetched, $notGraduated, $newest];
+    }
+
+    /**
+     * Save the mapped rows through the import rules and record the outcome on the run.
+     *
+     * @param  array<int, array<string, string>>  $rows
+     * @param  array<int, string>  $identities
+     */
+    private function finish(ErpSyncRun $run, array $rows, array $identities, int $fetched, int $notGraduated, ?Carbon $newest): ErpSyncRun
+    {
+        $report = $this->import->importRows($rows, $run->dry_run, RecordSource::Erp);
+
+        $run->forceFill([
+            'status' => ErpSyncStatus::Succeeded,
+            'fetched' => $fetched,
+            'not_graduated' => $notGraduated,
+            'created' => $report->created,
+            'updated' => $report->updated,
+            'unchanged' => $report->unchanged,
+            'rejected' => $report->skipped,
+            // The next pull starts where this one ended, but only if nothing was turned away: a record we
+            // rejected must be offered again next time, not skipped past for good.
+            'cursor' => ($run->dry_run || $report->skipped > 0) ? null : $newest,
+            'report' => [
+                'errors' => $this->named($report->errors, $identities),
+                'warnings' => $this->named($report->warnings, $identities),
+                'reference_created' => $report->referenceCreated,
+            ],
+            'finished_at' => now(),
+        ])->save();
+
+        return $run;
+    }
+
+    /**
+     * Name the student on every problem: "row 412" means nothing to someone looking at the ERP.
+     *
+     * @param  list<array{row: int, message: string}>  $items
+     * @param  array<int, string>  $identities
+     * @return list<array{row: int, message: string}>
+     */
+    private function named(array $items, array $identities): array
+    {
+        return array_map(
+            fn (array $i) => ['row' => $i['row'], 'message' => ($identities[$i['row']] ?? 'unknown').': '.$i['message']],
+            $items
+        );
+    }
+
+    private function lock(): Lock
+    {
+        return Cache::lock(self::LOCK, (int) config('sunates.erp.stale_run_minutes') * 60);
     }
 
     private function fail(ErpSyncRun $run, string $message): ErpSyncRun

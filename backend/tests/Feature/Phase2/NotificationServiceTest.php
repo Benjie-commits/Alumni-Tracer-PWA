@@ -198,7 +198,7 @@ class NotificationServiceTest extends Phase2TestCase
 
     public function test_every_template_renders_for_both_channels(): void
     {
-        $p = ['first_name' => 'Amina', 'url' => 'https://a.example/x', 'stop_url' => 'https://a.example/u/1', 'period' => '1 year'];
+        $p = ['first_name' => 'Amina', 'url' => 'https://a.example/x', 'stop_url' => 'https://a.example/u/1', 'period' => '1 year', 'code' => '123456', 'minutes' => '15'];
 
         foreach (MessageTemplate::cases() as $template) {
             $sms = $template->sms($p);
@@ -206,7 +206,10 @@ class NotificationServiceTest extends Phase2TestCase
             $this->assertIsArray($template->whatsappParams($p));
             $this->assertNotSame('', $template->whatsappTemplateName(), "{$template->value} needs a WhatsApp template name in config");
 
-            if ($template !== MessageTemplate::Test) {
+            if ($template === MessageTemplate::RegistrationCode) {
+                // Asked for a moment ago by the person themselves: no link, no stop line.
+                $this->assertStringContainsString('123456', $sms);
+            } elseif ($template !== MessageTemplate::Test) {
                 $this->assertStringContainsString('https://a.example/x', $sms);
                 $this->assertStringContainsString('https://a.example/u/1', $sms, 'every SMS must tell people how to stop');
             }

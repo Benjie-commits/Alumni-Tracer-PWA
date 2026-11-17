@@ -41,7 +41,7 @@ class ProfileTest extends ApiTestCase
 
     public function test_registrar_owned_fields_cannot_be_changed_by_the_alumnus(): void
     {
-        [$user, $profile] = $this->alumnus(['graduation_year' => 2023, 'student_number' => 'SU/2019/100']);
+        [$user, $profile] = $this->alumnus(['graduation_year' => 2023, 'student_number' => '1901600100']);
 
         $this->actingAs($user, 'sanctum')->putJson('/api/v1/me/profile', [
             'graduation_year' => 2010,
@@ -53,7 +53,7 @@ class ProfileTest extends ApiTestCase
 
         $profile->refresh();
         $this->assertSame(2023, $profile->graduation_year);
-        $this->assertSame('SU/2019/100', $profile->student_number);
+        $this->assertSame('1901600100', $profile->student_number);
         $this->assertSame('Amina', $profile->first_name);
         $this->assertSame('Gulu', $profile->city);
     }
@@ -167,7 +167,7 @@ class ProfileTest extends ApiTestCase
     public function test_employment_records_belonging_to_someone_else_look_like_they_do_not_exist(): void
     {
         [$user] = $this->alumnus();
-        [, $otherProfile] = $this->alumnus(['student_number' => 'SU/2020/777']);
+        [, $otherProfile] = $this->alumnus(['student_number' => '2001600777']);
         // second alumnus() call created another user; use their record
         $theirRecord = EmploymentRecord::factory()->create(['alumni_profile_id' => $otherProfile->id]);
 

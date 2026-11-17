@@ -45,8 +45,8 @@ class AlumniImportTest extends TestCase
     {
         $report = $this->import($this->csv(
             self::HEADER,
-            'SU/2021/001,Amina,Okello,F,School of Science,Department of Biology,BSc Biology,2024,15/07/2024,amina@example.com,+256700111222',
-            'SU/2021/002,Peter,Ojok,M,School of Science,Department of Biology,BSc Biology,2024,,,',
+            '2101600001,Amina,Okello,F,School of Science,Department of Biology,BSc Biology,2024,15/07/2024,amina@example.com,+256700111222',
+            '2101600002,Peter,Ojok,M,School of Science,Department of Biology,BSc Biology,2024,,,',
         ));
 
         $this->assertSame(2, $report->rows);
@@ -54,7 +54,7 @@ class AlumniImportTest extends TestCase
         $this->assertSame(0, $report->skipped);
         $this->assertSame(3, $report->referenceCreated, 'one school, one department, one programme');
 
-        $amina = AlumniProfile::where('student_number', 'SU/2021/001')->first();
+        $amina = AlumniProfile::where('student_number', '2101600001')->first();
         $this->assertNull($amina->user_id);
         $this->assertSame(VerificationStatus::Unclaimed, $amina->verification_status);
         $this->assertSame('female', $amina->gender);
@@ -67,7 +67,7 @@ class AlumniImportTest extends TestCase
 
     public function test_a_dry_run_reports_the_same_numbers_but_writes_nothing(): void
     {
-        $lines = [self::HEADER, 'SU/2021/001,Amina,Okello,F,School of Science,Dept,BSc Biology,2024,,,'];
+        $lines = [self::HEADER, '2101600001,Amina,Okello,F,School of Science,Dept,BSc Biology,2024,,,'];
 
         $report = $this->import($this->csv(...$lines), dryRun: true);
 
@@ -80,7 +80,7 @@ class AlumniImportTest extends TestCase
 
     public function test_reimporting_the_same_sheet_changes_nothing(): void
     {
-        $path = $this->csv(self::HEADER, 'SU/2021/001,Amina,Okello,F,School of Science,Dept,BSc Biology,2024,,,');
+        $path = $this->csv(self::HEADER, '2101600001,Amina,Okello,F,School of Science,Dept,BSc Biology,2024,,,');
 
         $this->import($path);
         $second = $this->import($path);
@@ -94,7 +94,7 @@ class AlumniImportTest extends TestCase
     public function test_registrar_fields_are_refreshed_but_alumnus_contact_details_are_kept(): void
     {
         AlumniProfile::factory()->create([
-            'student_number' => 'SU/2021/001',
+            'student_number' => '2101600001',
             'first_name' => 'Amina',
             'last_name' => 'Okelo',
             'email' => 'own.choice@example.com',
@@ -103,7 +103,7 @@ class AlumniImportTest extends TestCase
 
         $report = $this->import($this->csv(
             self::HEADER,
-            'SU/2021/001,Amina,Okello,F,School of Science,Dept,BSc Biology,2024,,sheet@example.com,+256700111222',
+            '2101600001,Amina,Okello,F,School of Science,Dept,BSc Biology,2024,,sheet@example.com,+256700111222',
         ));
 
         $this->assertSame(1, $report->updated);
@@ -115,9 +115,9 @@ class AlumniImportTest extends TestCase
 
     public function test_a_blank_cell_does_not_erase_existing_registrar_data(): void
     {
-        AlumniProfile::factory()->create(['student_number' => 'SU/2021/001', 'graduation_year' => 2023, 'class_of_award' => 'Second Class Upper']);
+        AlumniProfile::factory()->create(['student_number' => '2101600001', 'graduation_year' => 2023, 'class_of_award' => 'Second Class Upper']);
 
-        $this->import($this->csv(self::HEADER, 'SU/2021/001,Amina,Okello,,,,,,,,'));
+        $this->import($this->csv(self::HEADER, '2101600001,Amina,Okello,,,,,,,,'));
 
         $profile = AlumniProfile::first();
         $this->assertSame(2023, $profile->graduation_year);
@@ -128,11 +128,11 @@ class AlumniImportTest extends TestCase
     {
         $report = $this->import($this->csv(
             self::HEADER,
-            'SU/2021/001,Amina,Okello,F,,,,2024,,,',
+            '2101600001,Amina,Okello,F,,,,2024,,,',
             ',No,Number,F,,,,2024,,,',
-            'SU/2021/003,Bad,Year,F,,,,1850,,,',
-            'SU/2021/004,Bad,Date,F,,,,,31/02/2024,,',
-            'SU/2021/005,Peter,Ojok,M,,,,2023,,,',
+            '2101600003,Bad,Year,F,,,,1850,,,',
+            '2101600004,Bad,Date,F,,,,,31/02/2024,,',
+            '2101600005,Peter,Ojok,M,,,,2023,,,',
         ));
 
         $this->assertSame(5, $report->rows);
@@ -146,7 +146,7 @@ class AlumniImportTest extends TestCase
 
     public function test_a_programme_with_no_school_is_filed_under_unassigned_with_a_warning(): void
     {
-        $report = $this->import($this->csv(self::HEADER, 'SU/2021/001,Amina,Okello,F,,,BSc Biology,2024,,,'));
+        $report = $this->import($this->csv(self::HEADER, '2101600001,Amina,Okello,F,,,BSc Biology,2024,,,'));
 
         $this->assertSame(1, $report->created);
         $this->assertCount(1, $report->warnings);
@@ -157,8 +157,8 @@ class AlumniImportTest extends TestCase
     {
         $report = $this->import($this->csv(
             self::HEADER,
-            'SU/2021/001,Amina,Okello,F,,,,2024,,,',
-            'su/2021/001,Amina,Okello-Achieng,F,,,,2024,,,',
+            '2101600001,Amina,Okello,F,,,,2024,,,',
+            '21 01600 001,Amina,Okello-Achieng,F,,,,2024,,,',
         ));
 
         $this->assertSame(1, $report->created);
@@ -171,7 +171,7 @@ class AlumniImportTest extends TestCase
     {
         $report = $this->import($this->csv(
             "\u{FEFF}STUDENT NO;given names;SURNAME;year",
-            'SU/2021/001;Amina;Okello;2024',
+            '2101600001;Amina;Okello;2024',
         ));
 
         $this->assertSame(1, $report->created);
@@ -190,7 +190,7 @@ class AlumniImportTest extends TestCase
     {
         $path = tempnam(sys_get_temp_dir(), 'sunates');
         $this->files[] = $path;
-        file_put_contents($path, mb_convert_encoding("Reg No,First Name,Surname\nSU/2021/009,Zo\u{E9},Ochieng\n", 'Windows-1252', 'UTF-8'));
+        file_put_contents($path, mb_convert_encoding("Reg No,First Name,Surname\n2101600009,Zo\u{E9},Ochieng\n", 'Windows-1252', 'UTF-8'));
 
         $this->import($path);
 
@@ -199,9 +199,9 @@ class AlumniImportTest extends TestCase
 
     public function test_soft_deleted_records_are_not_silently_resurrected_or_duplicated(): void
     {
-        AlumniProfile::factory()->create(['student_number' => 'SU/2021/001'])->delete();
+        AlumniProfile::factory()->create(['student_number' => '2101600001'])->delete();
 
-        $report = $this->import($this->csv(self::HEADER, 'SU/2021/001,Amina,Okello,F,,,,2024,,,'));
+        $report = $this->import($this->csv(self::HEADER, '2101600001,Amina,Okello,F,,,,2024,,,'));
 
         $this->assertSame(1, $report->skipped);
         $this->assertStringContainsString('deleted', $report->errors[0]['message']);

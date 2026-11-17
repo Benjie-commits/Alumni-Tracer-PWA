@@ -13,7 +13,7 @@ class ErpCommandTest extends Phase4TestCase
     public function test_the_command_syncs_and_summarises_what_it_did(): void
     {
         $this->useRestErp();
-        $this->fakeErp([$this->erpRecord(), $this->erpRecord(['student_number' => 'SU/2026/002'])]);
+        $this->fakeErp([$this->erpRecord(), $this->erpRecord(['student_number' => '2601600002'])]);
 
         $this->artisan('sunates:sync-erp')
             ->expectsOutputToContain('Synced: 2 read, 2 new, 0 updated, 0 already up to date, 0 not graduated yet, 0 rejected')
@@ -46,10 +46,10 @@ class ErpCommandTest extends Phase4TestCase
     public function test_rejected_records_are_listed_by_student_and_do_not_fail_the_run(): void
     {
         $this->useRestErp();
-        $this->fakeErp([$this->erpRecord(['student_number' => 'SU/2026/009', 'last_name' => ''])]);
+        $this->fakeErp([$this->erpRecord(['student_number' => '2601600009', 'last_name' => ''])]);
 
         $this->artisan('sunates:sync-erp')
-            ->expectsOutputToContain('SU/2026/009: Missing last name.')
+            ->expectsOutputToContain('2601600009: Missing last name.')
             ->assertSuccessful();
     }
 
