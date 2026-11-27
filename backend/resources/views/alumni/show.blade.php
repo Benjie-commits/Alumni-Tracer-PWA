@@ -98,7 +98,7 @@
                     <li class="grad">
                         <div class="when">{{ $p->graduation_date?->format('F Y') ?? $p->graduation_year }}</div>
                         <div class="what">Graduated from Soroti University</div>
-                        <div class="where">{{ $programme?->name }}{{ $p->class_of_award ? ' · '.$p->class_of_award : '' }}</div>
+                        <div class="where">{{ $programme?->name }}</div>
                     </li>
                 </ol>
             </section>
