@@ -17,7 +17,7 @@ class StudentFactory extends Factory
             'first_name' => fake()->firstName(),
             'last_name' => fake()->lastName(),
             'year_of_study' => 2,
-            'email' => fake()->unique()->safeEmail(),
+            'email' => fake()->unique()->userName().'@sun.ac.ug',
             'phone' => '+2567'.fake()->numerify('########'),
         ];
     }

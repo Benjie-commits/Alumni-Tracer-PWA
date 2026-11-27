@@ -25,7 +25,7 @@ use RuntimeException;
 
 /**
  * Fake data so the console and PWA have something to show in local development.
- * Every name is invented and every school is prefixed "DEMO", so it cannot be mistaken for real records.
+ * Every name is invented; the schools and programmes are Soroti University's real ones.
  */
 class DemoDataSeeder extends Seeder
 {
@@ -49,6 +49,8 @@ class DemoDataSeeder extends Seeder
             ],
             'School of Applied Science & Science Education' => [
                 'Accounting, Finance and Computing' => ['Bachelor of Science in Accounting, Finance, and Computing'],
+                // sun.ac.ug lists these one-year HEAC certificates but not which school runs them.
+                'Higher Education Access Certificate' => ['Certificate in Biological Sciences', 'Certificate in Physical Sciences'],
             ],
         ])->flatMap(function (array $departments, string $schoolName) {
             $school = School::query()->firstOrCreate(['name' => $schoolName]);
@@ -74,7 +76,7 @@ class DemoDataSeeder extends Seeder
                 'class_of_award' => fake()->randomElement(['First Class', 'Second Class Upper', 'Second Class Lower']),
                 'verification_status' => $claimed ? VerificationStatus::Verified : VerificationStatus::Unclaimed,
                 'claimed_at' => $claimed ? now()->subDays(fake()->numberBetween(1, 200)) : null,
-                'email' => $claimed ? fake()->unique()->userName().'@example.test' : null,
+                'email' => $claimed ? fake()->unique()->userName().'@sun.ac.ug' : null,
                 'phone' => $claimed ? '+2567'.fake()->numerify('########') : null,
                 'city' => $claimed ? fake()->randomElement(['Soroti', 'Kampala', 'Mbale', 'Gulu']) : null,
                 'country' => $claimed ? 'Uganda' : null,
@@ -110,7 +112,7 @@ class DemoDataSeeder extends Seeder
     {
         $records = [
             ['2101600901', 'Grace', 'Akello', ['phone' => '+256700000901']],
-            ['2101600902', 'Peter', 'Ojok', ['email' => 'peter.ojok@example.test']],
+            ['2101600902', 'Peter', 'Ojok', ['email' => 'peter.ojok@sun.ac.ug']],
         ];
 
         foreach ($records as [$number, $first, $last, $contact]) {
@@ -134,16 +136,16 @@ class DemoDataSeeder extends Seeder
     {
         $first = $programmes->first();
 
-        JobPosting::factory()->create(['title' => 'Graduate trainee (DEMO)', 'organisation' => 'DEMO Agro Ltd']);
+        JobPosting::factory()->create(['title' => 'Graduate trainee', 'organisation' => 'Teso Agro Processors Ltd']);
         JobPosting::factory()->create([
-            'title' => 'Laboratory internship (DEMO)', 'organisation' => 'DEMO Regional Hospital', 'type' => JobType::Internship,
+            'title' => 'Laboratory internship', 'organisation' => 'Soroti Regional Referral Hospital', 'type' => JobType::Internship,
             'programme_id' => $first->id, 'how_to_apply' => 'https://example.org/apply',
         ]);
-        JobPosting::factory()->draft()->create(['title' => 'Draft posting (DEMO)', 'organisation' => 'DEMO Co']);
+        JobPosting::factory()->draft()->create(['title' => 'Graduate recruitment drive', 'organisation' => 'Eastern Uganda Partners']);
 
-        EventPosting::factory()->create(['title' => 'DEMO Alumni homecoming']);
+        EventPosting::factory()->create(['title' => 'Alumni homecoming']);
         EventPosting::factory()->create([
-            'title' => 'DEMO Career talk for recent graduates', 'graduation_year_from' => 2023,
+            'title' => 'Career talk for recent graduates', 'graduation_year_from' => 2023,
             'venue' => null, 'online_url' => 'https://example.org/live',
         ]);
 
