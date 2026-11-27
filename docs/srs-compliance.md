@@ -1,4 +1,4 @@
-# SUN-ATES: compliance with the engineering specification (v1.0)
+# SUN Alumni: compliance with the engineering specification (v1.0)
 
 Status as of 17 Nov 2026, on `main` at the merge of `setup/php-composer-environment` (commit `f248f47`) plus the ERP inbound endpoint.
 

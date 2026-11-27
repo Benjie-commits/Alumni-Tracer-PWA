@@ -1,4 +1,4 @@
-# SUN-ATES: Soroti University Alumni Tracking, Engagement and Tracer Study Information System
+# SUN Alumni: Soroti University Alumni Tracking, Engagement and Tracer Study Information System
 
 Implementation of `SUN-ATES_Engineering_Specification.pdf` (v1.0). This repository currently contains
 **Phase 1** (alumni directory, self-service registration, staff console), **Phase 2** (tracer-study surveys and
@@ -290,7 +290,7 @@ Employers and partner institutions can check that someone graduated, without con
 
 ## SorotiUniERP hook (FR-9, Phase 4)
 
-SUN-ATES runs standalone at launch (spec section 2.4): `ERP_DRIVER=none`, alumni come from Registrar spreadsheets, and
+SUN Alumni runs standalone at launch (spec section 2.4): `ERP_DRIVER=none`, alumni come from Registrar spreadsheets, and
 nothing below runs. Once SorotiUniERP is in active use, ICT switches the hook on and a graduating student's ERP
 record becomes an alumni record without anyone typing it again. The ERP is read behind one interface
 (`GraduateSource`), so going live is a setting, not a code change, and nothing in the profile or survey code knows

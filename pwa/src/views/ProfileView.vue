@@ -5,6 +5,7 @@ import { api } from '../api.js'
 import { useForm } from '../useForm.js'
 import CredentialLinks from '../components/CredentialLinks.vue'
 import MentoringCard from '../components/MentoringCard.vue'
+import PublicPageCard from '../components/PublicPageCard.vue'
 import Field from '../components/Field.vue'
 
 const profile = ref(null)
@@ -122,6 +123,8 @@ async function save() {
     </section>
 
     <CredentialLinks v-if="status === 'verified'" />
+
+    <PublicPageCard />
 
     <MentoringCard />
 

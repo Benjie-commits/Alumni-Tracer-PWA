@@ -64,7 +64,22 @@ class AlumniProfile extends Model
             'last_survey_completed_at' => 'datetime',
             'ta_flagged_at' => 'datetime',
             'mentor_opt_in_at' => 'datetime',
+            'public_published_at' => 'datetime',
+            'public_sections' => 'array',
         ];
+    }
+
+    /** The optional parts of the public page a graduate may switch on. */
+    public const PUBLIC_SECTIONS = ['work', 'location', 'mentor', 'linkedin'];
+
+    public function isPublic(): bool
+    {
+        return $this->public_published_at !== null && $this->verification_status === VerificationStatus::Verified;
+    }
+
+    public function showsOnPublicPage(string $section): bool
+    {
+        return in_array($section, $this->public_sections ?? [], true);
     }
 
     public function user(): BelongsTo

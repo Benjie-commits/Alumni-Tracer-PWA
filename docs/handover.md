@@ -1,4 +1,4 @@
-# SUN-ATES handover package
+# SUN Alumni handover package
 
 Spec section 13 asks for a documented handover so the nominated Unit can run the system after the student
 developers move on. This is that document. It deliberately contains **no passwords or keys**: it says where each

@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\OutcomeExportController;
 use App\Http\Controllers\Admin\PasswordController;
 use App\Http\Controllers\Admin\SurveyExportController;
+use App\Http\Controllers\PublicAlumnusController;
 use App\Http\Controllers\UnsubscribeController;
 use App\Http\Controllers\VerificationPortalController;
 use App\Livewire\Admin\ActivityLogs;
@@ -51,6 +52,12 @@ Route::get('verify', [VerificationPortalController::class, 'show'])->name('verif
 Route::post('verify', [VerificationPortalController::class, 'lookup'])->middleware('throttle:verification')->name('verify.lookup');
 Route::post('verify/enquiry', [VerificationPortalController::class, 'enquiry'])->middleware('throttle:verification-enquiry')->name('verify.enquiry');
 Route::get('verify/{token}', [VerificationPortalController::class, 'link'])->middleware('throttle:verification')->name('verify.link');
+
+// Graduates' own public pages: only ones the graduate published, showing only what they chose.
+Route::middleware('throttle:survey')->group(function () {
+    Route::get('alumni', [PublicAlumnusController::class, 'index'])->name('alumni.public');
+    Route::get('alumni/{slug}', [PublicAlumnusController::class, 'show'])->name('alumnus.show');
+});
 
 $staff = 'role:'.implode(',', array_map(fn (RoleSlug $r) => $r->value, RoleSlug::staff()));
 $managers = 'role:'.RoleSlug::Registrar->value.','.RoleSlug::IctAdmin->value;

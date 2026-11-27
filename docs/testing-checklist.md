@@ -1,4 +1,4 @@
-# SUN-ATES manual testing checklist
+# SUN Alumni manual testing checklist
 
 Spec section 12 calls for automated tests (in `backend/tests`, `pwa/tests`) **and** manual checks that only a person
 with real devices and the Registrar's staff can do. Record each run: date, tester, device/browser, result, notes.

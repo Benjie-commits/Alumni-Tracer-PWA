@@ -31,7 +31,7 @@ enum MessageTemplate: string
             self::RegisterInvite => "Soroti University: Hi {$name}, join the alumni network and keep your details current: {$p['url']} Stop: {$p['stop_url']}",
             // Asked for by the person a moment ago, so no stop link; it says what to do if it was not them.
             self::RegistrationCode => "Soroti University: your alumni registration code is {$p['code']}. It expires in {$p['minutes']} minutes. If you did not ask for it, ignore this message.",
-            self::Test => 'Soroti University SUN-ATES test message. If you can read this, SMS delivery is working.',
+            self::Test => 'Soroti University SUN Alumni test message. If you can read this, SMS delivery is working.',
         };
     }
 

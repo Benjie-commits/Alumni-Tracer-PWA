@@ -1,0 +1,22 @@
+/* Alternative palette: cream and coffee brown, after the colours the campus buildings are painted.
+   Forest green stays the default; <html data-palette="coffee"> switches every screen that loads this file. */
+:root[data-palette="coffee"] {
+  --ink: #2a1c14; --muted: #6b5848; --line: #e2d5bd; --bg: #f5eddc; --panel: #fffaf1;
+  --brand: #5a3a28; --brand-ink: #ffffff; --link: #6b4128; --accent: #c4862d; --gold: #c4862d;
+  --bar: #3b2418; --bar-ink: #f6ecdc; --navy: #5a3a28; --navy-deep: #3b2418;
+  --shadow: 0 1px 2px rgba(60, 36, 24, .08), 0 2px 8px rgba(60, 36, 24, .06);
+}
+:root[data-palette="coffee"][data-page="home"] { --bar: #5a3a28; --accent: #5a3a28; }
+:root[data-palette="coffee"] .shade { background: radial-gradient(ellipse 62% 48% at 50% 50%, rgba(28,14,6,.66), rgba(28,14,6,0) 100%), linear-gradient(180deg, rgba(40,22,12,.52) 0%, rgba(70,42,26,.46) 55%, rgba(20,10,4,.9) 100%); }
+@media (prefers-color-scheme: dark) {
+  :root[data-palette="coffee"]:not([data-theme="light"]) {
+    --ink: #f0e6d8; --muted: #b9a590; --line: #3a2a1f; --bg: #17100c; --panel: #1f1610;
+    --brand: #a8714a; --link: #e0b08a; --accent: #e2a557; --gold: #e2a557; --bar: #120b07; --bar-ink: #f6ecdc;
+  }
+  :root[data-palette="coffee"][data-page="home"]:not([data-theme="light"]) { --bar: #5a3a28; --accent: #a8714a; }
+}
+:root[data-palette="coffee"][data-theme="dark"] {
+  --ink: #f0e6d8; --muted: #b9a590; --line: #3a2a1f; --bg: #17100c; --panel: #1f1610;
+  --brand: #a8714a; --link: #e0b08a; --accent: #e2a557; --gold: #e2a557; --bar: #120b07; --bar-ink: #f6ecdc;
+}
+:root[data-palette="coffee"][data-theme="dark"][data-page="home"] { --bar: #5a3a28; --accent: #a8714a; }

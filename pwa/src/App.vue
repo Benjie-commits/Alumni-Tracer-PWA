@@ -66,7 +66,7 @@ async function signOut() {
 
 <template>
   <header class="topbar">
-    <span class="brand">SUN Alumni</span>
+    <a class="brand" href="/" title="Back to the landing page">SUN Alumni</a>
     <span>
       <button type="button" class="link" :aria-label="`Switch to ${nextTheme(theme)} mode`" @click="toggleTheme">
         {{ theme === 'dark' ? '☀ Light' : '☾ Dark' }}

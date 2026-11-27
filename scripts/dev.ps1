@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Start, stop or check the local SUN-ATES development stack on Windows.
+    Start, stop or check the local SUN Alumni development stack on Windows.
 
 .DESCRIPTION
     start   Launches what development needs, skipping any that are already up:

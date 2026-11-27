@@ -1,8 +1,8 @@
 @echo off
-rem SUN-ATES: double-click to start everything and open the app. Stop it with stop.cmd.
+rem SUN Alumni: double-click to start everything and open the app. Stop it with stop.cmd.
 setlocal
 cd /d "%~dp0"
-title SUN-ATES launcher
+title SUN Alumni launcher
 
 set "TOOLS=%USERPROFILE%\tools"
 
@@ -22,9 +22,9 @@ if exist "%TOOLS%\php\php.exe" (
   rem Your own PHP and MySQL: MySQL must already be running and backend\.env filled in (see README).
   where php >nul 2>nul || (echo PHP was not found. See "Local setup" in README.md. & pause & exit /b 1)
   echo Starting the server, queue worker and scheduler in their own windows...
-  start "SUN-ATES server" /d backend cmd /k php artisan serve --host=127.0.0.1 --port=8000
-  start "SUN-ATES queue" /d backend cmd /k php artisan queue:work
-  start "SUN-ATES scheduler" /d backend cmd /k php artisan schedule:work
+  start "SUN Alumni server" /d backend cmd /k php artisan serve --host=127.0.0.1 --port=8000
+  start "SUN Alumni queue" /d backend cmd /k php artisan queue:work
+  start "SUN Alumni scheduler" /d backend cmd /k php artisan schedule:work
   timeout /t 4 /nobreak >nul
 )
 

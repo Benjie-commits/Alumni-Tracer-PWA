@@ -4,13 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    <title>Staff sign-in · SUN-ATES</title>
+    <title>Staff sign-in · SUN Alumni</title>
     <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/palette.css') }}">
     @include('partials.theme')
 </head>
 <body>
 <div class="login">
-    <h1>SUN-ATES staff console</h1>
+    <h1>SUN Alumni staff console</h1>
     <p class="muted">Soroti University Alumni Tracking, Engagement and Tracer Study Information System</p>
 
     <form method="post" action="{{ route('admin.login.store') }}" class="panel">
@@ -33,6 +34,7 @@
 
     <p class="muted small">Alumni: use the alumni app instead. This console is for Registrar, ICT and QA staff.</p>
     <button type="button" class="secondary" data-theme-toggle onclick="sunatesToggleTheme()">Light / dark</button>
+    <button type="button" class="secondary" data-palette-toggle onclick="sunatesTogglePalette()">Palette</button>
 </div>
 </body>
 </html>

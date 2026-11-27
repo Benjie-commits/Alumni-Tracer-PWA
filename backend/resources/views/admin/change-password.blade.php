@@ -4,8 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
-    <title>Choose your password · SUN-ATES</title>
+    <title>Choose your password · SUN Alumni</title>
     <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/palette.css') }}">
     @include('partials.theme')
     @livewireStyles
 </head>

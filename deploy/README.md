@@ -1,4 +1,4 @@
-# Deploying SUN-ATES (spec section 10)
+# Deploying SUN Alumni (spec section 10)
 
 **Status: these files are a prepared kit, not a record of a deployment.** None of them has been run on a real
 server yet: hosting, the domain and TLS are still to be allocated by the Directorate of ICT. Test them on a

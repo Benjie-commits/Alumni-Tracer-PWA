@@ -12,7 +12,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'SUN-ATES Alumni',
+        name: 'SUN Alumni',
         short_name: 'SUN Alumni',
         description: 'Soroti University alumni: keep your record up to date, take tracer surveys and stay connected.',
         lang: 'en',
@@ -33,7 +33,7 @@ export default defineConfig({
         // use shared or borrowed phones, so nothing personal may outlive the signed-in session.
         navigateFallback: '/app/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/admin/, /^\/livewire/, /^\/u\//, /^\/verify/],
-        globPatterns: ['**/*.{js,css,html,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
         runtimeCaching: [
           {
             // Public lookups (schools, programmes, dropdown options) are safe to keep for slow connections.

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\NotificationPreferenceController;
 use App\Http\Controllers\Api\V1\OpportunityController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\PublicPageController;
 use App\Http\Controllers\Api\V1\ReferenceDataController;
 use App\Http\Controllers\Api\V1\StudentController;
 use App\Http\Controllers\Api\V1\SurveyController;
@@ -75,6 +76,8 @@ Route::prefix('v1')->group(function () {
 
         Route::get('me/profile', [ProfileController::class, 'show']);
         Route::put('me/profile', [ProfileController::class, 'update']);
+        Route::get('me/public-page', [PublicPageController::class, 'show']);
+        Route::put('me/public-page', [PublicPageController::class, 'update']);
 
         Route::apiResource('me/employment-records', EmploymentRecordController::class)
             ->parameters(['employment-records' => 'employmentRecord'])
