@@ -110,6 +110,7 @@ Route::prefix('admin')->name('admin.')->group(function () use ($staff, $managers
 
         Route::middleware('role:'.RoleSlug::IctAdmin->value)->group(function () {
             Route::get('staff', StaffUsers::class)->name('staff');
+            Route::get('settings', \App\Livewire\Admin\Settings::class)->name('settings');
             // The staff audit trail (who edited, decided, imported or exported what).
             Route::get('activity', ActivityLogs::class)->name('activity');
         });

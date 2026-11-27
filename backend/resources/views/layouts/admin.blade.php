@@ -44,6 +44,7 @@
             @if ($user->hasRole(\App\Enums\RoleSlug::IctAdmin))
                 <span class="group">System</span>
             <a href="{{ route('admin.staff') }}" @class(['active' => request()->routeIs('admin.staff')])>Staff accounts</a>
+                <a href="{{ route('admin.settings') }}" @class(['active' => request()->routeIs('admin.settings')])>Settings</a>
                 <a href="{{ route('admin.activity') }}" @class(['active' => request()->routeIs('admin.activity')])>Activity log</a>
             @endif
         </nav>

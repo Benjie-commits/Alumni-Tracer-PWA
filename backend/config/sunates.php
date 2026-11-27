@@ -23,6 +23,9 @@ return [
     | A matching record with no contact details goes to the staff verification queue instead.
     */
     'registration' => [
+        // One-time code to the contact on the Registrar's record. Off until an ICT admin turns it on in the
+        // console (Settings); a console choice overrides this default.
+        'otp_enabled' => (bool) env('SUNATES_REGISTRATION_OTP', false),
         'code_ttl_minutes' => 15,
         // Wrong codes allowed per challenge, across resends.
         'max_attempts' => 5,
@@ -224,6 +227,7 @@ return [
             'export.survey_responses' => 'Exported survey answers',
             'export.outcomes' => 'Exported graduate outcomes',
             'import.committed' => 'Imported a spreadsheet',
+            'settings.registration_otp' => 'Changed the registration code setting',
             'staff.created' => 'Created a staff account',
             'staff.activated' => 'Re-activated a staff account',
             'staff.deactivated' => 'Deactivated a staff account',

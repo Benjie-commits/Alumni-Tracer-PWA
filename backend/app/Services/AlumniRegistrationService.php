@@ -8,6 +8,7 @@ use App\Enums\VerificationStatus;
 use App\Models\AlumniProfile;
 use App\Models\RegistrationChallenge;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\Registration\RegistrationCodeNotSent;
 use App\Services\Registration\RegistrationCodeSender;
@@ -59,16 +60,22 @@ class AlumniRegistrationService
             throw $this->alreadyRegistered();
         }
 
-        if ($record !== null) {
+        if ($record !== null && self::otpEnabled()) {
             // Sent outside any transaction: it is a call to a messaging provider.
             $challenge = $this->challenge($record, $data, $ip);
             if ($challenge !== null) {
                 return $challenge;
             }
             // The record holds no phone or email to prove ownership with: the Registrar decides instead.
+            // The same happens while codes are switched off: nothing is claimed without proof.
         }
 
         return DB::transaction(fn () => $this->declare($data, $studentNumber, $lastName, $year));
+    }
+
+    public static function otpEnabled(): bool
+    {
+        return Setting::enabled('registration.otp', (bool) config('sunates.registration.otp_enabled'));
     }
 
     /**
@@ -78,29 +85,30 @@ class AlumniRegistrationService
      */
     public function verifyCode(string $token, string $code): AlumniProfile
     {
-        $challenge = RegistrationChallenge::query()->where('token', $token)->first();
+        $id = RegistrationChallenge::query()->where('token', $token)->value('id');
+        $expired = ValidationException::withMessages(['code' => 'This code has expired or has already been used. Please register again to get a new one.']);
 
-        if (! $challenge?->isUsable()) {
-            throw ValidationException::withMessages(['code' => 'This code has expired or has already been used. Please register again to get a new one.']);
+        if ($id === null) {
+            throw $expired;
         }
 
-        if (! Hash::check($code, $challenge->code_hash)) {
-            $challenge->increment('attempts');
-            $left = (int) config('sunates.registration.max_attempts') - $challenge->attempts;
+        // Everything under one lock: two guesses racing cannot both be counted as the same attempt, and
+        // a wrong guess is recorded before the lock is released.
+        $outcome = DB::transaction(function () use ($id, $code) {
+            $challenge = RegistrationChallenge::query()->lockForUpdate()->find($id);
 
-            throw ValidationException::withMessages(['code' => $left > 0
-                ? "That code is not right. You have {$left} ".($left === 1 ? 'try' : 'tries').' left.'
-                : 'That code is not right, and no tries are left. Please register again to get a new one.']);
-        }
+            if (! $challenge?->isUsable()) {
+                return 'expired';
+            }
 
-        return DB::transaction(function () use ($challenge) {
-            // Lock both, so two phones racing with the same code (or two people with two codes) cannot both claim.
-            $challenge = RegistrationChallenge::query()->lockForUpdate()->findOrFail($challenge->id);
+            if (! Hash::check($code, $challenge->code_hash)) {
+                $challenge->increment('attempts');
+
+                return (int) config('sunates.registration.max_attempts') - $challenge->attempts;
+            }
+
             $record = AlumniProfile::query()->lockForUpdate()->find($challenge->alumni_profile_id);
 
-            if ($challenge->consumed_at !== null) {
-                throw ValidationException::withMessages(['code' => 'This code has already been used.']);
-            }
             if ($record === null || $record->isClaimed()) {
                 throw $this->alreadyRegistered('code');
             }
@@ -118,6 +126,17 @@ class AlumniRegistrationService
                 'password' => $payload['password_hash'],
             ]);
         });
+
+        if ($outcome instanceof AlumniProfile) {
+            return $outcome;
+        }
+        if ($outcome === 'expired') {
+            throw $expired;
+        }
+
+        throw ValidationException::withMessages(['code' => $outcome > 0
+            ? "That code is not right. You have {$outcome} ".($outcome === 1 ? 'try' : 'tries').' left.'
+            : 'That code is not right, and no tries are left. Please register again to get a new one.']);
     }
 
     /**

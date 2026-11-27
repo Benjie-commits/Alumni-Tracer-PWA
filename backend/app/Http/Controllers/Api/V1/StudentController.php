@@ -47,6 +47,12 @@ class StudentController extends Controller
             throw ValidationException::withMessages(['student_number' => 'This student number already has an account. Sign in, or use "Forgot your password?".']);
         }
 
+        // Staff may have recorded this student already. A student number alone is not proof of being them,
+        // so the record is attached only when the email typed is the one staff hold for it.
+        if ($existing !== null && ($existing->email === null || strcasecmp(trim($existing->email), trim($data['email'])) !== 0)) {
+            throw ValidationException::withMessages(['student_number' => 'This student number is already on record. Register with the email the university holds for you, or ask the Registrar\'s office.']);
+        }
+
         $user = DB::transaction(function () use ($data, $number, $existing) {
             $user = User::query()->create([
                 'name' => trim($data['first_name'].' '.$data['last_name']),

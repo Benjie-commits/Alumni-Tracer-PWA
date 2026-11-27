@@ -19,6 +19,7 @@ abstract class ApiTestCase extends TestCase
         parent::setUp();
 
         $this->seed(RoleSeeder::class);
+        config(['sunates.registration.otp_enabled' => true]);
     }
 
     /**
